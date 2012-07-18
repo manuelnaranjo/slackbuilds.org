@@ -54,11 +54,11 @@ sed -i '/#define OUTPUT[ ]\+PROGNAME "\.out"/ s/\.out/.exe/' src/luac.c
 sed -i "s|/${PREFIX}/local|/${PREFIX}|" src/luaconf.h
 sed -i "s|lib/lua|lib$LIBDIRSUFFIX/lua|" src/luaconf.h
 
-make -C src -f ${CWD}/src_makefile.Makefile \
+make -C src -f ${CWD}/src_makefile \
   CC="${HOST_TRIPLET}-gcc" \
   AR="${HOST_TRIPLET}-ar"
 
-make -C src -f ${CWD}/src_makefile.Makefile \
+make -C src -f ${CWD}/src_makefile \
   BIN_DIR="${PKG}/${PREFIX}/bin" \
   INCLUDE_DIR="${PKG}/${PREFIX}/include" \
   LIB_DIR="${PKG}/${PREFIX}/lib${LIBDIRSUFFIX}" \
