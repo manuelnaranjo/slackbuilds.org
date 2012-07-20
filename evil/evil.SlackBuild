@@ -47,6 +47,7 @@ find . \
  -exec chmod 644 {} \;
 
 CFLAGS="-O2" \
+CXXFLAGS="-O2" \
 ./configure \
   --prefix=/${PREFIX} \
   --libdir=/${PREFIX}/lib${LIBDIRSUFFIX} \
