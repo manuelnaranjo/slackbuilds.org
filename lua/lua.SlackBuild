@@ -54,7 +54,7 @@ sed -i '/#define OUTPUT[ ]\+PROGNAME "\.out"/ s/\.out/.exe/' src/luac.c
 sed -i "s|/${PREFIX}/local|/${PREFIX}|" src/luaconf.h
 sed -i "s|lib/lua|lib$LIBDIRSUFFIX/lua|" src/luaconf.h
 
-make -C src -f ${CWD}/src_makefile \
+make -C src -f ${CWD}/src_makefile -j7 \
   CC="${HOST_TRIPLET}-gcc" \
   AR="${HOST_TRIPLET}-ar"
 
