@@ -61,7 +61,7 @@ CFLAGS="-O2 -I/${PREFIX}/include/evil-1" \
 make -j7
 make install DESTDIR=$PKG
 
-find $PKG | xargs file | grep -e "executable|shared object" \
+find $PKG | xargs file | egrep -e "executable|shared object" \
   | grep ${HOST_EXE_FORMAT} | cut -f 1 -d : \
   | xargs ${HOST_STRIP} --strip-unneeded 2> /dev/null || true
 
