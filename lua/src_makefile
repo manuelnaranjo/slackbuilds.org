@@ -12,13 +12,13 @@ LDFLAGS = -lm
 AR ?= ar
 AR_FLAGS = rcs
 
-CORE_O = lapi.o lcode.o lctype.o ldebug.o ldo.o ldump.o lfunc.o lgc.o llex.o \
-				 lmem.o lobject.o lopcodes.o lparser.o lstate.o lstring.o ltable.o ltm.o \
-				 lundump.o lvm.o lzio.o
-LIB_O = lauxlib.o lbaselib.o lbitlib.o lcorolib.o ldblib.o liolib.o lmathlib.o \
-				loslib.o lstrlib.o ltablib.o loadlib.o linit.o
+CORE_O=	lapi.o lcode.o ldebug.o ldo.o ldump.o lfunc.o lgc.o llex.o lmem.o \
+				lobject.o lopcodes.o lparser.o lstate.o lstring.o ltable.o ltm.o  \
+				lundump.o lvm.o lzio.o
+LIB_O= lauxlib.o lbaselib.o ldblib.o liolib.o lmathlib.o loslib.o ltablib.o \
+			 lstrlib.o loadlib.o linit.o
 
-all: liblua-52.dll liblua.dll.a lua.exe
+all: liblua-51.dll liblua.dll.a lua.exe
 
 .c.o:
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
@@ -30,22 +30,23 @@ lua.exe: lua.o liblua.dll.a
 luac.exe: luac.o liblua.dll.a
 	$(CC) -o $@ luac.o liblua.dll.a $(LDFLAGS)
 
-liblua-52.dll liblua.dll.a: $(CORE_O) $(LIB_O)
-	$(CC) -shared -o liblua-52.dll -Wl,--out-implib=liblua.dll.a $(CORE_O) $(LIB_O)
+liblua-51.dll liblua.dll.a: $(CORE_O) $(LIB_O)
+	$(CC) -shared -o liblua-51.dll -Wl,--out-implib=liblua.dll.a $(CORE_O) $(LIB_O)
 
 .PHONY: install clean
 
-install: liblua.dll.a liblua-52.dll lua.exe
+install: liblua.dll.a liblua-51.dll lua.exe
 	mkdir -p $(BIN_DIR) $(INCLUDE_DIR) $(LIB_DIR)
-	install -p liblua-52.dll $(BIN_DIR)
+	install -p liblua-51.dll $(BIN_DIR)
 	for header in lua.h luaconf.h lualib.h lauxlib.h; do \
 		install -p $${header} $(INCLUDE_DIR); \
 	done
 	install -p liblua.dll.a $(LIB_DIR)
 
 clean:
-	-rm -f liblua.a liblua-52.dll liblua.dll.a
+	-rm -f liblua.a liblua-51.dll liblua.dll.a
 	-rm -f *.o
+
 
 lapi.o: lapi.c lua.h luaconf.h lapi.h lobject.h llimits.h ldebug.h \
   lstate.h ltm.h lzio.h lmem.h ldo.h lfunc.h lgc.h lstring.h ltable.h \
