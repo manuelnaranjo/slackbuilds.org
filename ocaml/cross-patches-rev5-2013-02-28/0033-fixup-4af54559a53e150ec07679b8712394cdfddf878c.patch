@@ -1,0 +1,24 @@
+From 421cc941a95d36db3da6bc4c7e4d88854c2cf09b Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Thu, 28 Feb 2013 23:07:43 +0100
+Subject: [PATCH 33/34] fixup! 4af54559a53e150ec07679b8712394cdfddf878c
+
+---
+ build/partial-install.sh | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/build/partial-install.sh b/build/partial-install.sh
+index e332866..a5f517a 100755
+--- a/build/partial-install.sh
++++ b/build/partial-install.sh
+@@ -181,7 +181,6 @@ installdir \
+   ocamlbuild/ocamlbuild/ocamlbuild.cmx \
+   ocamlbuild/ocamlbuild/ocamlbuild.$O \
+   ocamlbuild/$LIBDIR/ocamlbuild
+-cdocamlbuild/ ..
+ 
+ inocamlbuild/stalldir \
+   ocamlbuild/../ocamlbuild/man/ocamlbuild.1 \
+-- 
+1.8.1.4
+

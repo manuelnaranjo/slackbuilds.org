@@ -1,0 +1,65 @@
+From e9c42b2c5804e8700001b53e4788dd402f3bc372 Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Thu, 28 Feb 2013 22:57:42 +0100
+Subject: [PATCH 31/34] fixup! 4af54559a53e150ec07679b8712394cdfddf878c
+
+---
+ build/partial-install.sh | 38 +++++++++++++++++++-------------------
+ 1 file changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/build/partial-install.sh b/build/partial-install.sh
+index 5c411f3..465fffd 100755
+--- a/build/partial-install.sh
++++ b/build/partial-install.sh
+@@ -51,8 +51,8 @@ installbestbin() {
+       echo "  install binary $3 (with `basename $2`)"
+       cp -f "$2" "$3"
+     else
+-      echo "None of $1, $2 exists"
+-      exit 3
++      wontinstall "$1"
++      wontinstall "$2"
+     fi
+   fi
+   [ -x "$3" ] || chmod +x "$3"
+@@ -168,20 +168,20 @@ installdir \
+   ocamlbuild/ocamlbuild_plugin.cmo \
+   ocamlbuild/ocamlbuild_plugin.cmx \
+   ocamlbuild/ocamlbuild_pack.cmi \
+-  ocamlbuild/ocamlbuild_unix_plugin.cmi \
+-  ocamlbuild/ocamlbuild_unix_plugin.cmo \
+-  ocamlbuild/ocamlbuild_unix_plugin.cmx \
+-  ocamlbuild/ocamlbuild_unix_plugin.$O \
+-  ocamlbuild/ocamlbuild_executor.cmi \
+-  ocamlbuild/ocamlbuild_executor.cmo \
+-  ocamlbuild/ocamlbuild_executor.cmx \
+-  ocamlbuild/ocamlbuild_executor.$O \
+-  ocamlbuild/ocamlbuild.cmo \
+-  ocamlbuild/ocamlbuild.cmx \
+-  ocamlbuild/ocamlbuild.$O \
+-  $LIBDIR/ocamlbuild
+-cd ..
+-
+-installdir \
+-  ../ocamlbuild/man/ocamlbuild.1 \
+-  $MANDIR/man1
++  ocamlbuild/ocamlbuild/ocamlbuild_unix_plugin.cmi \
++  ocamlbuild/ocamlbuild/ocamlbuild_unix_plugin.cmo \
++  ocamlbuild/ocamlbuild/ocamlbuild_unix_plugin.cmx \
++  ocamlbuild/ocamlbuild/ocamlbuild_unix_plugin.$O \
++  ocamlbuild/ocamlbuild/ocamlbuild_executor.cmi \
++  ocamlbuild/ocamlbuild/ocamlbuild_executor.cmo \
++  ocamlbuild/ocamlbuild/ocamlbuild_executor.cmx \
++  ocamlbuild/ocamlbuild/ocamlbuild_executor.$O \
++  ocamlbuild/ocamlbuild/ocamlbuild.cmo \
++  ocamlbuild/ocamlbuild/ocamlbuild.cmx \
++  ocamlbuild/ocamlbuild/ocamlbuild.$O \
++  ocamlbuild/$LIBDIR/ocamlbuild
++cdocamlbuild/ ..
++
++inocamlbuild/stalldir \
++  ocamlbuild/../ocamlbuild/man/ocamlbuild.1 \
++  ocamlbuild/$MANDIR/man1
+-- 
+1.8.1.4
+

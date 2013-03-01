@@ -1,0 +1,33 @@
+From 34b70ce7603b7b44296103f6b2a53dd214dd369e Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Sun, 17 Feb 2013 22:37:39 +0100
+Subject: [PATCH 25/34] TEMP! build: don't compile ocamlc.opt with
+ BYTECCLIBS/LINKOPTS.
+
+These are for the target, not the build system.
+For my build system, they'd have to be empty so simply removing them is
+fine but for others, that wouldn't be so simple.
+This will require some more work and expanding configure a bit.
+---
+ Makefile | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 278dffc..1e49d1f 100644
+--- a/Makefile
++++ b/Makefile
+@@ -457,9 +457,9 @@ partialclean::
+ 	rm -f compilerlibs/ocamlbytecomp.cmxa compilerlibs/ocamlbytecomp.a
+ 
+ ocamlc.opt: compilerlibs/ocamlcommon.cmxa compilerlibs/ocamlbytecomp.cmxa $(BYTESTART:.cmo=.cmx)
+-	$(CAMLOPT_HOST_BIN) $(LINKFLAGS) -ccopt "$(BYTECCLINKOPTS)" -o ocamlc.opt \
++	$(CAMLOPT_HOST_BIN) $(LINKFLAGS) -o ocamlc.opt \
+ 		compilerlibs/ocamlcommon.cmxa compilerlibs/ocamlbytecomp.cmxa \
+-		$(BYTESTART:.cmo=.cmx) -cclib "$(BYTECCLIBS)"
++		$(BYTESTART:.cmo=.cmx)
+ 
+ partialclean::
+ 	rm -f ocamlc.opt
+-- 
+1.8.1.4
+

@@ -1,0 +1,79 @@
+From 1178a0733fb8a837b6b517408ddf34b391642424 Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Mon, 7 Jan 2013 23:07:56 +0100
+Subject: [PATCH 14/34] win32unix: add a Makefile (not ".nt" one).
+
+---
+ otherlibs/win32unix/Makefile | 60 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 60 insertions(+)
+ create mode 100644 otherlibs/win32unix/Makefile
+
+diff --git a/otherlibs/win32unix/Makefile b/otherlibs/win32unix/Makefile
+new file mode 100644
+index 0000000..72248e5
+--- /dev/null
++++ b/otherlibs/win32unix/Makefile
+@@ -0,0 +1,60 @@
++#########################################################################
++#                                                                       #
++#                                 OCaml                                 #
++#                                                                       #
++#            Xavier Leroy, projet Cristal, INRIA Rocquencourt           #
++#                                                                       #
++#   Copyright 1999 Institut National de Recherche en Informatique et    #
++#   en Automatique.  All rights reserved.  This file is distributed     #
++#   under the terms of the GNU Library General Public License, with     #
++#   the special exception on linking described in file ../../LICENSE.   #
++#                                                                       #
++#########################################################################
++
++# Files in this directory
++WIN_FILES = accept.c bind.c channels.c close.c \
++  close_on.c connect.c createprocess.c dup.c dup2.c errmsg.c \
++  getpeername.c getpid.c getsockname.c gettimeofday.c \
++  link.c listen.c lockf.c lseek.c nonblock.c \
++  mkdir.c open.c pipe.c read.c rename.c \
++  select.c sendrecv.c \
++  shutdown.c sleep.c socket.c sockopt.c startup.c stat.c \
++  system.c times.c unixsupport.c windir.c winwait.c write.c \
++  winlist.c winworker.c windbug.c
++
++# Files from the ../unix directory
++UNIX_FILES = access.c addrofstr.c chdir.c chmod.c cst2constr.c \
++  cstringv.c envir.c execv.c execve.c execvp.c \
++  exit.c getaddrinfo.c getcwd.c gethost.c gethostname.c \
++  getnameinfo.c getproto.c \
++  getserv.c gmtime.c putenv.c rmdir.c \
++  socketaddr.c strofaddr.c time.c unlink.c utimes.c
++
++UNIX_CAML_FILES = unix.mli unixLabels.mli unixLabels.ml
++
++ALL_FILES=$(WIN_FILES) $(UNIX_FILES)
++WSOCKLIB=$(call SYSLIB,ws2_32)
++
++LIBNAME=unix
++COBJS=$(ALL_FILES:.c=.$(O))
++CAMLOBJS=unix.cmo unixLabels.cmo
++LINKOPTS=-cclib $(WSOCKLIB)
++LDOPTS=-ldopt $(WSOCKLIB)
++EXTRACAMLFLAGS=-nolabels
++EXTRACFLAGS=-I../unix
++HEADERS=unixsupport.h socketaddr.h
++
++
++include ../Makefile
++
++clean::
++	rm -f $(UNIX_FILES) $(UNIX_CAML_FILES)
++
++$(UNIX_FILES) $(UNIX_CAML_FILES): %: ../unix/%
++	cp ../unix/$* $*
++
++depend:
++
++$(COBJS): unixsupport.h
++
++include .depend
+-- 
+1.8.1.4
+

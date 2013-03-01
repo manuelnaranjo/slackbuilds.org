@@ -1,0 +1,479 @@
+From 439312529b0a4ebbd2cd6443a3e3b76bc0d26977 Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Sun, 17 Feb 2013 22:34:49 +0100
+Subject: [PATCH 24/34] asmcomp: internals, store integers as Int64.
+
+When cross-compiling between architectures of different bitness,
+nativeint has the wrong size since it uses the host's integers while we
+need to use the target's.
+---
+ asmcomp/amd64/selection.ml |  4 ++--
+ asmcomp/cmm.ml             |  8 ++++----
+ asmcomp/cmm.mli            |  8 ++++----
+ asmcomp/cmmgen.ml          | 48 +++++++++++++++++++++++-----------------------
+ asmcomp/i386/arch.ml       |  8 ++++----
+ asmcomp/i386/emit.mlp      | 15 +++++++++------
+ asmcomp/i386/selection.ml  |  8 ++++----
+ asmcomp/mach.ml            |  2 +-
+ asmcomp/mach.mli           |  2 +-
+ asmcomp/printcmm.ml        |  8 ++++----
+ asmcomp/printmach.ml       |  2 +-
+ asmcomp/selectgen.ml       |  4 ++--
+ 12 files changed, 60 insertions(+), 57 deletions(-)
+
+diff --git a/asmcomp/amd64/selection.ml b/asmcomp/amd64/selection.ml
+index 4de8412..5716019 100644
+--- a/asmcomp/amd64/selection.ml
++++ b/asmcomp/amd64/selection.ml
+@@ -155,11 +155,11 @@ method select_addressing chunk exp =
+ method! select_store addr exp =
+   match exp with
+     Cconst_int n when self#is_immediate n ->
+-      (Ispecific(Istore_int(Nativeint.of_int n, addr)), Ctuple [])
++      (Ispecific(Istore_int(Int64.of_int n, addr)), Ctuple [])
+   | Cconst_natint n when self#is_immediate_natint n ->
+       (Ispecific(Istore_int(n, addr)), Ctuple [])
+   | Cconst_pointer n when self#is_immediate n ->
+-      (Ispecific(Istore_int(Nativeint.of_int n, addr)), Ctuple [])
++      (Ispecific(Istore_int(Int64.of_int n, addr)), Ctuple [])
+   | Cconst_natpointer n when self#is_immediate_natint n ->
+       (Ispecific(Istore_int(n, addr)), Ctuple [])
+   | Cconst_symbol s when not (!pic_code || !Clflags.dlcode) ->
+diff --git a/asmcomp/cmm.ml b/asmcomp/cmm.ml
+index 941b014..c13b7cf 100644
+--- a/asmcomp/cmm.ml
++++ b/asmcomp/cmm.ml
+@@ -84,11 +84,11 @@ type operation =
+ 
+ type expression =
+     Cconst_int of int
+-  | Cconst_natint of nativeint
++  | Cconst_natint of int64
+   | Cconst_float of string
+   | Cconst_symbol of string
+   | Cconst_pointer of int
+-  | Cconst_natpointer of nativeint
++  | Cconst_natpointer of int64
+   | Cvar of Ident.t
+   | Clet of Ident.t * expression * expression
+   | Cassign of Ident.t * expression
+@@ -115,8 +115,8 @@ type data_item =
+   | Cglobal_symbol of string
+   | Cint8 of int
+   | Cint16 of int
+-  | Cint32 of nativeint
+-  | Cint of nativeint
++  | Cint32 of int64
++  | Cint of int64
+   | Csingle of string
+   | Cdouble of string
+   | Csymbol_address of string
+diff --git a/asmcomp/cmm.mli b/asmcomp/cmm.mli
+index 202b6ae..21c4c37 100644
+--- a/asmcomp/cmm.mli
++++ b/asmcomp/cmm.mli
+@@ -70,11 +70,11 @@ type operation =
+ 
+ type expression =
+     Cconst_int of int
+-  | Cconst_natint of nativeint
++  | Cconst_natint of int64
+   | Cconst_float of string
+   | Cconst_symbol of string
+   | Cconst_pointer of int
+-  | Cconst_natpointer of nativeint
++  | Cconst_natpointer of int64
+   | Cvar of Ident.t
+   | Clet of Ident.t * expression * expression
+   | Cassign of Ident.t * expression
+@@ -101,8 +101,8 @@ type data_item =
+   | Cglobal_symbol of string
+   | Cint8 of int
+   | Cint16 of int
+-  | Cint32 of nativeint
+-  | Cint of nativeint
++  | Cint32 of int64
++  | Cint of int64
+   | Csingle of string
+   | Cdouble of string
+   | Csymbol_address of string
+diff --git a/asmcomp/cmmgen.ml b/asmcomp/cmmgen.ml
+index 4e1695e..d90b6e9 100644
+--- a/asmcomp/cmmgen.ml
++++ b/asmcomp/cmmgen.ml
+@@ -41,8 +41,8 @@ let float_tag = Cconst_int Obj.double_tag
+ let floatarray_tag = Cconst_int Obj.double_array_tag
+ 
+ let block_header tag sz =
+-  Nativeint.add (Nativeint.shift_left (Nativeint.of_int sz) 10)
+-                (Nativeint.of_int tag)
++  Int64.add (Int64.shift_left (Int64.of_int sz) 10)
++            (Int64.of_int tag)
+ let closure_header sz = block_header Obj.closure_tag sz
+ let infix_header ofs = block_header Obj.infix_tag ofs
+ let float_header = block_header Obj.double_tag (size_float / size_addr)
+@@ -72,7 +72,7 @@ let int_const n =
+   if n <= max_repr_int && n >= min_repr_int
+   then Cconst_int((n lsl 1) + 1)
+   else Cconst_natint
+-          (Nativeint.add (Nativeint.shift_left (Nativeint.of_int n) 1) 1n)
++          (Int64.add (Int64.shift_left (Int64.of_int n) 1) 1L)
+ 
+ let add_const c n =
+   if n = 0 then c
+@@ -178,7 +178,7 @@ let asr_int c1 c2 =
+ 
+ let is_different_from x = function
+     Cconst_int n -> n <> x
+-  | Cconst_natint n -> n <> Nativeint.of_int x
++  | Cconst_natint n -> n <> Int64.of_int x
+   | _ -> false
+ 
+ let safe_divmod op c1 c2 dbg =
+@@ -499,7 +499,7 @@ let transl_constant = function
+       if n <= max_repr_int && n >= min_repr_int
+       then Cconst_pointer((n lsl 1) + 1)
+       else Cconst_natpointer
+-              (Nativeint.add (Nativeint.shift_left (Nativeint.of_int n) 1) 1n)
++              (Int64.add (Int64.shift_left (Int64.of_int n) 1) 1L)
+   | cst ->
+       Cconst_symbol (Compilenv.new_structured_constant cst false)
+ 
+@@ -533,7 +533,7 @@ let box_int bi arg =
+     Cconst_int n ->
+       transl_constant (box_int_constant bi (Nativeint.of_int n))
+   | Cconst_natint n ->
+-      transl_constant (box_int_constant bi n)
++      transl_constant (box_int_constant bi (Int64.to_nativeint n))
+   | _ ->
+       let arg' =
+         if bi = Pint32 && size_int = 8 && big_endian
+@@ -568,7 +568,7 @@ let rec unbox_int bi arg =
+ 
+ let make_unsigned_int bi arg =
+   if bi = Pint32 && size_int = 8
+-  then Cop(Cand, [arg; Cconst_natint 0xFFFFFFFFn])
++  then Cop(Cand, [arg; Cconst_natint 0xFFFFFFFFL])
+   else arg
+ 
+ (* Big arrays *)
+@@ -1730,11 +1730,11 @@ and transl_unbox_float = function
+ 
+ and transl_unbox_int bi = function
+     Uconst(Const_base(Const_int32 n), _) ->
+-      Cconst_natint (Nativeint.of_int32 n)
++      Cconst_natint (Int64.of_int32 n)
+   | Uconst(Const_base(Const_nativeint n), _) ->
+-      Cconst_natint n
++      Cconst_natint (Int64.of_nativeint n)
+   | Uconst(Const_base(Const_int64 n), _) ->
+-      assert (size_int = 8); Cconst_natint (Int64.to_nativeint n)
++      assert (size_int = 8); Cconst_natint n
+   | Uprim(Pbintofint bi', [Uconst(Const_base(Const_int i),_)], _) when bi = bi' ->
+       Cconst_int i
+   | exp -> unbox_int bi (transl exp)
+@@ -1959,10 +1959,10 @@ and emit_constant_fields fields cont =
+ and emit_constant_field field cont =
+   match field with
+     Const_base(Const_int n) ->
+-      (Cint(Nativeint.add (Nativeint.shift_left (Nativeint.of_int n) 1) 1n),
++      (Cint(Int64.add (Int64.shift_left (Int64.of_int n) 1) 1L),
+        cont)
+   | Const_base(Const_char c) ->
+-      (Cint(Nativeint.of_int(((Char.code c) lsl 1) + 1)), cont)
++      (Cint(Int64.of_int(((Char.code c) lsl 1) + 1)), cont)
+   | Const_base(Const_float s) ->
+       let lbl = Compilenv.new_const_label() in
+       (Clabel_address lbl,
+@@ -1998,7 +1998,7 @@ and emit_constant_field field cont =
+        Cint(boxedintnat_header) :: Cdefine_label lbl ::
+        emit_boxed_nativeint_constant n cont)
+   | Const_pointer n ->
+-      (Cint(Nativeint.add (Nativeint.shift_left (Nativeint.of_int n) 1) 1n),
++      (Cint(Int64.add (Int64.shift_left (Int64.of_int n) 1) 1L),
+        cont)
+   | Const_block(tag, fields) ->
+       let lbl = Compilenv.new_const_label() in
+@@ -2017,21 +2017,21 @@ and emit_string_constant s cont =
+   Cstring s :: Cskip n :: Cint8 n :: cont
+ 
+ and emit_boxed_int32_constant n cont =
+-  let n = Nativeint.of_int32 n in
++  let n = Int64.of_int32 n in
+   if size_int = 8 then
+-    Csymbol_address("caml_int32_ops") :: Cint32 n :: Cint32 0n :: cont
++    Csymbol_address("caml_int32_ops") :: Cint32 n :: Cint32 0L :: cont
+   else
+     Csymbol_address("caml_int32_ops") :: Cint n :: cont
+ 
+ and emit_boxed_nativeint_constant n cont =
+-  Csymbol_address("caml_nativeint_ops") :: Cint n :: cont
++  Csymbol_address("caml_nativeint_ops") :: Cint (Int64.of_nativeint n) :: cont
+ 
+ and emit_boxed_int64_constant n cont =
+-  let lo = Int64.to_nativeint n in
+   if size_int = 8 then
+-    Csymbol_address("caml_int64_ops") :: Cint lo :: cont
++    Csymbol_address("caml_int64_ops") :: Cint n :: cont
+   else begin
+-    let hi = Int64.to_nativeint (Int64.shift_right n 32) in
++    let lo = Int64.shift_right (Int64.shift_left n 32) 32 in
++    let hi = Int64.shift_left (Int64.shift_right n 32) 32 in
+     if big_endian then
+       Csymbol_address("caml_int64_ops") :: Cint hi :: Cint lo :: cont
+     else
+@@ -2050,23 +2050,23 @@ let emit_constant_closure symb fundecls cont =
+           if f2.arity = 1 then
+             Cint(infix_header pos) ::
+             Csymbol_address f2.label ::
+-            Cint 3n ::
++            Cint 3L ::
+             emit_others (pos + 3) rem
+           else
+             Cint(infix_header pos) ::
+             Csymbol_address(curry_function f2.arity) ::
+-            Cint(Nativeint.of_int (f2.arity lsl 1 + 1)) ::
++            Cint(Int64.of_int (f2.arity lsl 1 + 1)) ::
+             Csymbol_address f2.label ::
+             emit_others (pos + 4) rem in
+       Cint(closure_header (fundecls_size fundecls)) ::
+       Cdefine_symbol symb ::
+       if f1.arity = 1 then
+         Csymbol_address f1.label ::
+-        Cint 3n ::
++        Cint 3L ::
+         emit_others 3 remainder
+       else
+         Csymbol_address(curry_function f1.arity) ::
+-        Cint(Nativeint.of_int (f1.arity lsl 1 + 1)) ::
++        Cint(Int64.of_int (f1.arity lsl 1 + 1)) ::
+         Csymbol_address f1.label ::
+         emit_others 4 remainder
+ 
+@@ -2425,7 +2425,7 @@ let entry_point namelist =
+ 
+ (* Generate the table of globals *)
+ 
+-let cint_zero = Cint 0n
++let cint_zero = Cint 0L
+ 
+ let global_table namelist =
+   let mksym name =
+diff --git a/asmcomp/i386/arch.ml b/asmcomp/i386/arch.ml
+index d2f9fd6..0ef0f1f 100644
+--- a/asmcomp/i386/arch.ml
++++ b/asmcomp/i386/arch.ml
+@@ -31,11 +31,11 @@ type addressing_mode =
+ 
+ type specific_operation =
+     Ilea of addressing_mode             (* Lea gives scaled adds *)
+-  | Istore_int of nativeint * addressing_mode (* Store an integer constant *)
++  | Istore_int of int64 * addressing_mode (* Store an integer constant *)
+   | Istore_symbol of string * addressing_mode (* Store a symbol *)
+   | Ioffset_loc of int * addressing_mode (* Add a constant to a location *)
+   | Ipush                               (* Push regs on stack *)
+-  | Ipush_int of nativeint            (* Push an integer constant *)
++  | Ipush_int of int64            (* Push an integer constant *)
+   | Ipush_symbol of string              (* Push a symbol *)
+   | Ipush_load of addressing_mode       (* Load a scalar and push *)
+   | Ipush_load_float of addressing_mode (* Load a float and push *)
+@@ -107,7 +107,7 @@ let print_specific_operation printreg op ppf arg =
+   | Ilea addr -> print_addressing printreg addr ppf arg
+   | Istore_int(n, addr) ->
+       fprintf ppf "[%a] := %s" (print_addressing printreg addr) arg
+-                               (Nativeint.to_string n)
++                               (Int64.to_string n)
+   | Istore_symbol(lbl, addr) ->
+       fprintf ppf "[%a] := \"%s\"" (print_addressing printreg addr) arg lbl
+   | Ioffset_loc(n, addr) ->
+@@ -119,7 +119,7 @@ let print_specific_operation printreg op ppf arg =
+         printreg ppf arg.(i)
+       done
+   | Ipush_int n ->
+-      fprintf ppf "push %s" (Nativeint.to_string n)
++      fprintf ppf "push %s" (Int64.to_string n)
+   | Ipush_symbol s ->
+       fprintf ppf "push \"%s\"" s
+   | Ipush_load addr ->
+diff --git a/asmcomp/i386/emit.mlp b/asmcomp/i386/emit.mlp
+index 8e0d349..f2e0e0a 100644
+--- a/asmcomp/i386/emit.mlp
++++ b/asmcomp/i386/emit.mlp
+@@ -23,6 +23,9 @@ open Mach
+ open Linearize
+ open Emitaux
+ 
++let emit_int64_as_native n =
++  output_string !output_channel (Int32.to_string (Int64.to_int32 n))
++
+ (* Tradeoff between code size and code speed *)
+ 
+ let fastcode_flag = ref true
+@@ -458,12 +461,12 @@ let emit_instr fallthrough i =
+               `	movl	{emit_reg src}, {emit_reg dst}\n`
+         end
+     | Lop(Iconst_int n) ->
+-        if n = 0n then begin
++        if n = 0L then begin
+           match i.res.(0).loc with
+             Reg n -> `	xorl	{emit_reg i.res.(0)}, {emit_reg i.res.(0)}\n`
+           | _     -> `	movl	$0, {emit_reg i.res.(0)}\n`
+         end else
+-          `	movl	${emit_nativeint n}, {emit_reg i.res.(0)}\n`
++          `	movl	${emit_int64_as_native n}, {emit_reg i.res.(0)}\n`
+     | Lop(Iconst_float s) ->
+         begin match Int64.bits_of_float (float_of_string s) with
+         | 0x0000_0000_0000_0000L ->       (* +0.0 *)
+@@ -696,7 +699,7 @@ let emit_instr fallthrough i =
+     | Lop(Ispecific(Ilea addr)) ->
+         `	lea	{emit_addressing addr i.arg 0}, {emit_reg i.res.(0)}\n`
+     | Lop(Ispecific(Istore_int(n, addr))) ->
+-        `	movl	${emit_nativeint n}, {emit_addressing addr i.arg 0}\n`
++        `	movl	${emit_int64_as_native n}, {emit_addressing addr i.arg 0}\n`
+     | Lop(Ispecific(Istore_symbol(s, addr))) ->
+         `	movl	${emit_symbol s}, {emit_addressing addr i.arg 0}\n`
+     | Lop(Ispecific(Ioffset_loc(n, addr))) ->
+@@ -723,7 +726,7 @@ let emit_instr fallthrough i =
+               stack_offset := !stack_offset + 4
+         done
+     | Lop(Ispecific(Ipush_int n)) ->
+-        `	pushl	${emit_nativeint n}\n`;
++        `	pushl	${emit_int64_as_native n}\n`;
+         cfi_adjust_cfa_offset 4;
+         stack_offset := !stack_offset + 4
+     | Lop(Ispecific(Ipush_symbol s)) ->
+@@ -963,9 +966,9 @@ let emit_item = function
+   | Cint16 n ->
+       `	{emit_string word_dir}	{emit_int n}\n`
+   | Cint32 n ->
+-      `	.long	{emit_nativeint n}\n`
++      `	.long	{emit_int64_as_native n}\n`
+   | Cint n ->
+-      `	.long	{emit_nativeint n}\n`
++      `	.long	{emit_int64_as_native n}\n`
+   | Csingle f ->
+       emit_float32_directive ".long" f
+   | Cdouble f ->
+diff --git a/asmcomp/i386/selection.ml b/asmcomp/i386/selection.ml
+index 49b5059..db7f815 100644
+--- a/asmcomp/i386/selection.ml
++++ b/asmcomp/i386/selection.ml
+@@ -181,11 +181,11 @@ method select_addressing chunk exp =
+ method! select_store addr exp =
+   match exp with
+     Cconst_int n ->
+-      (Ispecific(Istore_int(Nativeint.of_int n, addr)), Ctuple [])
++      (Ispecific(Istore_int(Int64.of_int n, addr)), Ctuple [])
+   | Cconst_natint n ->
+       (Ispecific(Istore_int(n, addr)), Ctuple [])
+   | Cconst_pointer n ->
+-      (Ispecific(Istore_int(Nativeint.of_int n, addr)), Ctuple [])
++      (Ispecific(Istore_int(Int64.of_int n, addr)), Ctuple [])
+   | Cconst_natpointer n ->
+       (Ispecific(Istore_int(n, addr)), Ctuple [])
+   | Cconst_symbol s ->
+@@ -283,9 +283,9 @@ method! insert_op_debug op dbg rs rd =
+ 
+ method select_push exp =
+   match exp with
+-    Cconst_int n -> (Ispecific(Ipush_int(Nativeint.of_int n)), Ctuple [])
++    Cconst_int n -> (Ispecific(Ipush_int(Int64.of_int n)), Ctuple [])
+   | Cconst_natint n -> (Ispecific(Ipush_int n), Ctuple [])
+-  | Cconst_pointer n -> (Ispecific(Ipush_int(Nativeint.of_int n)), Ctuple [])
++  | Cconst_pointer n -> (Ispecific(Ipush_int(Int64.of_int n)), Ctuple [])
+   | Cconst_natpointer n -> (Ispecific(Ipush_int n), Ctuple [])
+   | Cconst_symbol s -> (Ispecific(Ipush_symbol s), Ctuple [])
+   | Cop(Cload Word, [loc]) ->
+diff --git a/asmcomp/mach.ml b/asmcomp/mach.ml
+index 3e7160b..42cbf8a 100644
+--- a/asmcomp/mach.ml
++++ b/asmcomp/mach.ml
+@@ -35,7 +35,7 @@ type operation =
+     Imove
+   | Ispill
+   | Ireload
+-  | Iconst_int of nativeint
++  | Iconst_int of int64
+   | Iconst_float of string
+   | Iconst_symbol of string
+   | Icall_ind
+diff --git a/asmcomp/mach.mli b/asmcomp/mach.mli
+index 06fe1c3..3169353 100644
+--- a/asmcomp/mach.mli
++++ b/asmcomp/mach.mli
+@@ -35,7 +35,7 @@ type operation =
+     Imove
+   | Ispill
+   | Ireload
+-  | Iconst_int of nativeint
++  | Iconst_int of int64
+   | Iconst_float of string
+   | Iconst_symbol of string
+   | Icall_ind
+diff --git a/asmcomp/printcmm.ml b/asmcomp/printcmm.ml
+index f29bcbc..23490ed 100644
+--- a/asmcomp/printcmm.ml
++++ b/asmcomp/printcmm.ml
+@@ -86,11 +86,11 @@ let operation = function
+ 
+ let rec expr ppf = function
+   | Cconst_int n -> fprintf ppf "%i" n
+-  | Cconst_natint n -> fprintf ppf "%s" (Nativeint.to_string n)
++  | Cconst_natint n -> fprintf ppf "%s" (Int64.to_string n)
+   | Cconst_float s -> fprintf ppf "%s" s
+   | Cconst_symbol s -> fprintf ppf "\"%s\"" s
+   | Cconst_pointer n -> fprintf ppf "%ia" n
+-  | Cconst_natpointer n -> fprintf ppf "%sa" (Nativeint.to_string n)
++  | Cconst_natpointer n -> fprintf ppf "%sa" (Int64.to_string n)
+   | Cvar id -> Ident.print ppf id
+   | Clet(id, def, (Clet(_, _, _) as body)) ->
+       let print_binding id ppf def =
+@@ -184,8 +184,8 @@ let data_item ppf = function
+   | Cglobal_symbol s -> fprintf ppf "global \"%s\"" s
+   | Cint8 n -> fprintf ppf "byte %i" n
+   | Cint16 n -> fprintf ppf "int16 %i" n
+-  | Cint32 n -> fprintf ppf "int32 %s" (Nativeint.to_string n)
+-  | Cint n -> fprintf ppf "int %s" (Nativeint.to_string n)
++  | Cint32 n -> fprintf ppf "int32 %s" (Int64.to_string n)
++  | Cint n -> fprintf ppf "int %s" (Int64.to_string n)
+   | Csingle f -> fprintf ppf "single %s" f
+   | Cdouble f -> fprintf ppf "double %s" f
+   | Csymbol_address s -> fprintf ppf "addr \"%s\"" s
+diff --git a/asmcomp/printmach.ml b/asmcomp/printmach.ml
+index 6407f4f..4cc88ea 100644
+--- a/asmcomp/printmach.ml
++++ b/asmcomp/printmach.ml
+@@ -102,7 +102,7 @@ let operation op arg ppf res =
+   | Imove -> regs ppf arg
+   | Ispill -> fprintf ppf "%a (spill)" regs arg
+   | Ireload -> fprintf ppf "%a (reload)" regs arg
+-  | Iconst_int n -> fprintf ppf "%s" (Nativeint.to_string n)
++  | Iconst_int n -> fprintf ppf "%s" (Int64.to_string n)
+   | Iconst_float s -> fprintf ppf "%s" s
+   | Iconst_symbol s -> fprintf ppf "\"%s\"" s
+   | Icall_ind -> fprintf ppf "call %a" regs arg
+diff --git a/asmcomp/selectgen.ml b/asmcomp/selectgen.ml
+index 1d2bf96..dfae284 100644
+--- a/asmcomp/selectgen.ml
++++ b/asmcomp/selectgen.ml
+@@ -396,7 +396,7 @@ method emit_expr env exp =
+   match exp with
+     Cconst_int n ->
+       let r = self#regs_for typ_int in
+-      Some(self#insert_op (Iconst_int(Nativeint.of_int n)) [||] r)
++      Some(self#insert_op (Iconst_int (Int64.of_int n)) [||] r)
+   | Cconst_natint n ->
+       let r = self#regs_for typ_int in
+       Some(self#insert_op (Iconst_int n) [||] r)
+@@ -408,7 +408,7 @@ method emit_expr env exp =
+       Some(self#insert_op (Iconst_symbol n) [||] r)
+   | Cconst_pointer n ->
+       let r = self#regs_for typ_addr in
+-      Some(self#insert_op (Iconst_int(Nativeint.of_int n)) [||] r)
++      Some(self#insert_op (Iconst_int (Int64.of_int n)) [||] r)
+   | Cconst_natpointer n ->
+       let r = self#regs_for typ_addr in
+       Some(self#insert_op (Iconst_int n) [||] r)
+-- 
+1.8.1.4
+

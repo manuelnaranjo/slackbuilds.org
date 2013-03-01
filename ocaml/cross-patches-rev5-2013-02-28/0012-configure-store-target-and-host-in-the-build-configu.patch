@@ -1,0 +1,126 @@
+From e5f51e09e87e235462d213abaf7fd470762f3d48 Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Sun, 6 Jan 2013 19:24:49 +0100
+Subject: [PATCH 12/34] configure: store $target and $host in the build
+ configuration.
+
+---
+ Makefile             | 2 ++
+ bytecomp/bytelink.ml | 5 +++--
+ configure            | 2 ++
+ utils/config.mlbuild | 5 +++++
+ utils/config.mli     | 6 ++++++
+ utils/config.mlp     | 5 +++++
+ 6 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 4bbde62..aa7338b 100644
+--- a/Makefile
++++ b/Makefile
+@@ -418,6 +418,8 @@ utils/config.ml: utils/config.mlp config/Makefile
+ 	    -e 's|%%MKDLL%%|$(MKDLL)|' \
+ 	    -e 's|%%MKEXE%%|$(MKEXE)|' \
+ 	    -e 's|%%MKMAINDLL%%|$(MKMAINDLL)|' \
++	    -e 's|%%HOST%%|$(HOST)|' \
++	    -e 's|%%TARGET%%|$(TARGET)|' \
+ 	    utils/config.mlp > utils/config.ml
+ 	@chmod -w utils/config.ml
+ 
+diff --git a/bytecomp/bytelink.ml b/bytecomp/bytelink.ml
+index c218da5..0c8ce84 100644
+--- a/bytecomp/bytelink.ml
++++ b/bytecomp/bytelink.ml
+@@ -305,7 +305,8 @@ let link_bytecode ppf tolink exec_name standalone =
+     Symtable.init();
+     Consistbl.clear crc_interfaces;
+     let sharedobjs = List.map Dll.extract_dll_name !Clflags.dllibs in
+-    if standalone then begin
++    let check_dlls = standalone && Config.target = Config.host in
++    if check_dlls then begin
+       (* Initialize the DLL machinery *)
+       Dll.init_compile !Clflags.no_std_include;
+       Dll.add_path !load_path;
+@@ -315,7 +316,7 @@ let link_bytecode ppf tolink exec_name standalone =
+     let output_fun = output_string outchan
+     and currpos_fun () = pos_out outchan - start_code in
+     List.iter (link_file ppf output_fun currpos_fun) tolink;
+-    if standalone then Dll.close_all_dlls();
++    if check_dlls then Dll.close_all_dlls();
+     (* The final STOP instruction *)
+     output_byte outchan Opcodes.opSTOP;
+     output_byte outchan 0; output_byte outchan 0; output_byte outchan 0;
+diff --git a/configure b/configure
+index 9b69fb5..385eac4 100755
+--- a/configure
++++ b/configure
+@@ -1777,6 +1777,8 @@ echo "MKMAINDLL=$mkmaindll" >> Makefile
+ echo "RUNTIMED=${debugruntime}" >>Makefile
+ echo "CAMLP4=${withcamlp4}" >>Makefile
+ echo "ASM_CFI_SUPPORTED=$asm_cfi_supported" >> Makefile
++echo "TARGET=$target" >> Makefile
++echo "HOST=$host" >> Makefile
+ 
+ rm -f tst hasgot.c
+ rm -f ../m.h ../s.h ../Makefile
+diff --git a/utils/config.mlbuild b/utils/config.mlbuild
+index b418920..c27f6ae 100644
+--- a/utils/config.mlbuild
++++ b/utils/config.mlbuild
+@@ -95,6 +95,9 @@ let ext_asm = C.ext_asm
+ let ext_lib = C.ext_lib
+ let ext_dll = C.ext_dll
+ 
++let host = C.host
++let target = C.target
++
+ let default_executable_name =
+   match Sys.os_type with
+     "Unix" -> "a.out"
+@@ -130,5 +133,7 @@ let print_config oc =
+   p "os_type" Sys.os_type;
+   p "default_executable_name" default_executable_name;
+   p_bool "systhread_supported" systhread_supported;
++  p "host" host;
++  p "target" target;
+   flush oc;
+ ;;
+diff --git a/utils/config.mli b/utils/config.mli
+index 7829b9e..be2f1da 100644
+--- a/utils/config.mli
++++ b/utils/config.mli
+@@ -118,4 +118,10 @@ val default_executable_name: string
+ val systhread_supported : bool
+         (* Whether the system thread library is implemented *)
+ 
++val host : string
++        (* Whether the compiler is a cross-compiler *)
++
++val target : string
++        (* Whether the compiler is a cross-compiler *)
++
+ val print_config : out_channel -> unit;;
+diff --git a/utils/config.mlp b/utils/config.mlp
+index 4f3a405..56c41a8 100644
+--- a/utils/config.mlp
++++ b/utils/config.mlp
+@@ -84,6 +84,9 @@ let ext_asm = "%%EXT_ASM%%"
+ let ext_lib = "%%EXT_LIB%%"
+ let ext_dll = "%%EXT_DLL%%"
+ 
++let host = "%%HOST%%"
++let target = "%%TARGET%%"
++
+ let default_executable_name =
+   match Sys.os_type with
+     "Unix" -> "a.out"
+@@ -119,5 +122,7 @@ let print_config oc =
+   p "os_type" Sys.os_type;
+   p "default_executable_name" default_executable_name;
+   p_bool "systhread_supported" systhread_supported;
++  p "host" host;
++  p "target" target;
+   flush oc;
+ ;;
+-- 
+1.8.1.4
+

@@ -1,0 +1,71 @@
+From 4af54559a53e150ec07679b8712394cdfddf878c Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Thu, 28 Feb 2013 22:51:48 +0100
+Subject: [PATCH 29/34] install: skip ocamlbuild files which don't exist.
+
+---
+ build/partial-install.sh | 43 +++++++++++++++++++++----------------------
+ 1 file changed, 21 insertions(+), 22 deletions(-)
+
+diff --git a/build/partial-install.sh b/build/partial-install.sh
+index c06154a..5c411f3 100755
+--- a/build/partial-install.sh
++++ b/build/partial-install.sh
+@@ -153,33 +153,32 @@ if test -d camlp4; then
+ fi
+ 
+ echo "Installing ocamlbuild..."
+-cd ocamlbuild
+-installbin ocamlbuild.byte$EXE $BINDIR/ocamlbuild.byte$EXE
+-installbin ocamlbuild.native$EXE $BINDIR/ocamlbuild.native$EXE
+-installbestbin ocamlbuild.native$EXE ocamlbuild.byte$EXE $BINDIR/ocamlbuild$EXE
++installbin ocamlbuild/ocamlbuild.byte$EXE $BINDIR/ocamlbuild.byte$EXE
++installbin ocamlbuild/ocamlbuild.native$EXE $BINDIR/ocamlbuild.native$EXE
++installbestbin ocamlbuild/ocamlbuild.native$EXE ocamlbuild/ocamlbuild.byte$EXE $BINDIR/ocamlbuild$EXE
+ 
+ installlibdir \
+-  ocamlbuildlib.$A \
++  ocamlbuild/ocamlbuildlib.$A \
+   $LIBDIR/ocamlbuild
+ 
+ installdir \
+-  ocamlbuildlib.cmxa \
+-  ocamlbuildlib.cma \
+-  ocamlbuild_plugin.cmi \
+-  ocamlbuild_plugin.cmo \
+-  ocamlbuild_plugin.cmx \
+-  ocamlbuild_pack.cmi \
+-  ocamlbuild_unix_plugin.cmi \
+-  ocamlbuild_unix_plugin.cmo \
+-  ocamlbuild_unix_plugin.cmx \
+-  ocamlbuild_unix_plugin.$O \
+-  ocamlbuild_executor.cmi \
+-  ocamlbuild_executor.cmo \
+-  ocamlbuild_executor.cmx \
+-  ocamlbuild_executor.$O \
+-  ocamlbuild.cmo \
+-  ocamlbuild.cmx \
+-  ocamlbuild.$O \
++  ocamlbuild/ocamlbuildlib.cmxa \
++  ocamlbuild/ocamlbuildlib.cma \
++  ocamlbuild/ocamlbuild_plugin.cmi \
++  ocamlbuild/ocamlbuild_plugin.cmo \
++  ocamlbuild/ocamlbuild_plugin.cmx \
++  ocamlbuild/ocamlbuild_pack.cmi \
++  ocamlbuild/ocamlbuild_unix_plugin.cmi \
++  ocamlbuild/ocamlbuild_unix_plugin.cmo \
++  ocamlbuild/ocamlbuild_unix_plugin.cmx \
++  ocamlbuild/ocamlbuild_unix_plugin.$O \
++  ocamlbuild/ocamlbuild_executor.cmi \
++  ocamlbuild/ocamlbuild_executor.cmo \
++  ocamlbuild/ocamlbuild_executor.cmx \
++  ocamlbuild/ocamlbuild_executor.$O \
++  ocamlbuild/ocamlbuild.cmo \
++  ocamlbuild/ocamlbuild.cmx \
++  ocamlbuild/ocamlbuild.$O \
+   $LIBDIR/ocamlbuild
+ cd ..
+ 
+-- 
+1.8.1.4
+

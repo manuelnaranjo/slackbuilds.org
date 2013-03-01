@@ -1,0 +1,40 @@
+From 6bb8a86af03e4ff5137a1d7495f2535e0a292c73 Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Sun, 6 Jan 2013 12:49:52 +0100
+Subject: [PATCH 10/34] configure: add a special case to test for BSD sockets
+ for mingw.
+
+I tried to use "hasgot" to test it but proved too difficult since you
+must #include <winsock2.h> to make link succeed (windows magic) which
+then makes gcc complain about the prototype being wrong.
+
+Since windows already needs a special case in order to add -lws2_32 and
+since we know for sure it will be available, skip the hasgot test and
+check $target directly.
+---
+ configure | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/configure b/configure
+index 66468da..6841a53 100755
+--- a/configure
++++ b/configure
+@@ -1014,6 +1014,15 @@ elif sh ./hasgot -lnsl -lsocket socket socketpair bind listen accept connect; th
+   cclibs="$cclibs -lnsl -lsocket"
+   echo "#define HAS_SOCKETS" >> s.h
+   has_sockets=yes
++else
++  case "$target" in
++    *-*-mingw*)
++      inf "You have BSD sockets (with libraries '-lws2_32')"
++      cclibs="$cclibs -lws2_32"
++      echo "#define HAS_SOCKETS" >> s.h
++      has_sockets=yes ;;
++    *) ;;
++  esac
+ fi
+ 
+ if sh ./hasgot -i sys/socket.h -t socklen_t; then
+-- 
+1.8.1.4
+
