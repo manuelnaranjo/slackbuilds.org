@@ -68,13 +68,14 @@ if [ x"$TARGET_TRIPLET" != x"$HOST_TRIPLET" ]; then
     patch -p1 -i $p
   done
   DISABLES="-no-ocamldoc -no-debugger -no-camlp4 -no-ocamlbuild "
+  TARGET="--target ${TARGET_TRIPLET}"
 fi
 
 CFLAGS="-O2" ./configure \
   --prefix /${PREFIX} \
   --libdir /${PREFIX}/lib${LIBDIRSUFFIX}/ocaml \
   --host ${HOST_TRIPLET} \
-  --target ${TARGET_TRIPLET} \
+  ${TARGET} \
   ${DISABLES}
 
 (cd build && ./mkconfig.sh)
