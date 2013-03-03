@@ -59,7 +59,7 @@ CXXFLAGS="-O2" \
   --host=${HOST_TRIPLET} \
   --disable-static
 
-make -j7
+make -j1 # -j7 is currently broken
 make install DESTDIR=$PKG
 
 find $PKG | xargs file | grep -e "executable|shared object" \
