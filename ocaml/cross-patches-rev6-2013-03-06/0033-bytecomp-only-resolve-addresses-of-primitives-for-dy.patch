@@ -1,0 +1,53 @@
+From 16e9ef759e6befcce76b85a7950e329c3f8d08ac Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Wed, 6 Mar 2013 21:24:30 +0100
+Subject: [PATCH 33/34] bytecomp: only resolve addresses of primitives for
+ dynlink and toplevel.
+
+In other words, don't try to resolve addresses when linking.
+
+This caused
+---
+ bytecomp/dll.ml      | 3 +++
+ bytecomp/dll.mli     | 3 +++
+ bytecomp/symtable.ml | 2 +-
+ 3 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/bytecomp/dll.ml b/bytecomp/dll.ml
+index 5c62b9e..18c3b55 100644
+--- a/bytecomp/dll.ml
++++ b/bytecomp/dll.ml
+@@ -173,3 +173,6 @@ let init_toplevel dllpath =
+   opened_dlls := Array.to_list (get_current_dlls());
+   names_of_opened_dlls := [];
+   linking_in_core := true
++
++let linking_in_core () =
++  !linking_in_core
+diff --git a/bytecomp/dll.mli b/bytecomp/dll.mli
+index 975315e..b1cc612 100644
+--- a/bytecomp/dll.mli
++++ b/bytecomp/dll.mli
+@@ -59,3 +59,6 @@ val init_compile: bool -> unit
+    contents of ld.conf file).  Take note of the DLLs that were opened
+    when starting the running program. *)
+ val init_toplevel: string -> unit
++
++(* Getter for the linking_in_core internal variable. *)
++val linking_in_core: unit -> bool
+diff --git a/bytecomp/symtable.ml b/bytecomp/symtable.ml
+index 09d7cd8..1bc247f 100644
+--- a/bytecomp/symtable.ml
++++ b/bytecomp/symtable.ml
+@@ -81,7 +81,7 @@ let num_of_prim name =
+   try
+     find_numtable !c_prim_table name
+   with Not_found ->
+-    if !Clflags.custom_runtime then
++    if !Clflags.custom_runtime || (not (Dll.linking_in_core ())) then
+       enter_numtable c_prim_table name
+     else begin
+       let symb =
+-- 
+1.8.1.4
+

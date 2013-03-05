@@ -64,7 +64,7 @@ chown -R root:root .
 chmod -R u+w,go+r-w,a-s .
 
 if [ x"$TARGET_TRIPLET" != x"$HOST_TRIPLET" ]; then
-  for p in $CWD/cross-patches-rev5-2013-02-28/*; do
+  for p in $CWD/cross-patches-rev6-2013-03-06/*; do
     patch -p1 -i $p
   done
   DISABLES="-no-ocamldoc -no-debugger -no-camlp4 -no-ocamlbuild "

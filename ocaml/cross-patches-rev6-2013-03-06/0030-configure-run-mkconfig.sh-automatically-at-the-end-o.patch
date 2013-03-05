@@ -1,4 +1,4 @@
-From ade00f234fa8d53504d3470c7ecb8d294cbc8646 Mon Sep 17 00:00:00 2001
+From 4b30e3a95926db99850f1481fcac4d8c8b9cfd54 Mon Sep 17 00:00:00 2001
 From: Adrien Nader <adrien@notk.org>
 Date: Thu, 28 Feb 2013 22:52:02 +0100
 Subject: [PATCH 30/34] configure: run mkconfig.sh automatically at the end of
