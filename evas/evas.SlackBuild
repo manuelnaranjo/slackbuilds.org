@@ -46,6 +46,11 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
+case "${HOST_TRIPLET}" in
+  *-*-mingw*) ASYNC_PRELOAD="--disable-async-preload" ;;
+           *) ASYNC_PRELOAD="" ;;
+esac
+
 CFLAGS="-O2 -I/${PREFIX}/include/evil-1" \
 ./configure \
   --prefix=/${PREFIX} \
@@ -56,7 +61,7 @@ CFLAGS="-O2 -I/${PREFIX}/include/evil-1" \
   --docdir=/${PREFIX}/doc/$PRGNAM-$VERSION \
   --build=$ARCH-slackware-linux \
   --host=${HOST_TRIPLET} \
-  --disable-async-preload \
+  ${ASYNC_PRELOAD} \
   --disable-static
 
 make -j7
