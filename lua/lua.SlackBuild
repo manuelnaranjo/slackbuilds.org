@@ -48,21 +48,50 @@ tar xvf $CWD/$PRGNAM-${VERSION}.tar.gz
 cd $PRGNAM-$VERSION
 chown -R root:root .
 
-sed -i '/#define OUTPUT[ ]\+PROGNAME "\.out"/ s/\.out/.exe/' src/luac.c
-
 # Fix up a to-be-installed header and the pkgconfig file
 sed -i "s|/${PREFIX}/local|/${PREFIX}|" src/luaconf.h
 sed -i "s|lib/lua|lib$LIBDIRSUFFIX/lua|" src/luaconf.h
 
-make -C src -f ${CWD}/src_makefile -j7 \
-  CC="${HOST_TRIPLET}-gcc" \
-  AR="${HOST_TRIPLET}-ar"
+if echo "${HOST_TRIPLET}" | grep -qv mingw; then
+  make linux \
+    CFLAGS="$SLKCFLAGS -fPIC \$(MYCFLAGS)" \
+    INSTALL_TOP=/${PREFIX} \
+    INSTALL_LIB=/${PREFIX}/lib${LIBDIRSUFFIX} \
+    INSTALL_LMOD=/${PREFIX}/share/lua/5.1 \
+    INSTALL_CMOD=/${PREFIX}/lib${LIBDIRSUFFIX}/lua/5.1
 
-make -C src -f ${CWD}/src_makefile \
-  BIN_DIR="${PKG}/${PREFIX}/bin" \
-  INCLUDE_DIR="${PKG}/${PREFIX}/include" \
-  LIB_DIR="${PKG}/${PREFIX}/lib${LIBDIRSUFFIX}" \
-  install
+  make linux install \
+    CFLAGS="$SLKCFLAGS -fPIC \$(MYCFLAGS)" \
+    INSTALL_TOP=$PKG/${PREFIX} \
+    INSTALL_LIB=$PKG/${PREFIX}/lib${LIBDIRSUFFIX} \
+    INSTALL_LMOD=$PKG/${PREFIX}/share/lua/5.1 \
+    INSTALL_CMOD=$PKG/${PREFIX}/lib${LIBDIRSUFFIX}/lua/5.1
+
+  # Now let's build the shared library
+  mkdir -p shared
+  cd shared
+    ar -x $PKG/${PREFIX}/lib${LIBDIRSUFFIX}/liblua.a
+    gcc -ldl -lreadline -lhistory -lncurses -lm -shared *.o -o liblua.so.$VERSION
+    cp -a liblua.so.$VERSION $PKG/${PREFIX}/lib${LIBDIRSUFFIX}
+    ( cd $PKG/${PREFIX}/lib${LIBDIRSUFFIX}
+      ln -s liblua.so.$VERSION liblua.so.5.1
+      ln -s liblua.so.$VERSION liblua.so.5
+      ln -s liblua.so.$VERSION liblua.so
+    )
+  cd ..
+else
+  sed -i '/#define OUTPUT[ ]\+PROGNAME "\.out"/ s/\.out/.exe/' src/luac.c
+
+  make -C src -f ${CWD}/src_makefile -j7 \
+    CC="${HOST_TRIPLET}-gcc" \
+    AR="${HOST_TRIPLET}-ar"
+
+  make -C src -f ${CWD}/src_makefile \
+    BIN_DIR="${PKG}/${PREFIX}/bin" \
+    INCLUDE_DIR="${PKG}/${PREFIX}/include" \
+    LIB_DIR="${PKG}/${PREFIX}/lib${LIBDIRSUFFIX}" \
+    install
+fi
 
 PC_DIR="$PKG/${PREFIX}/lib${LIBDIRSUFFIX}/pkgconfig"
 mkdir -p ${PC_DIR}
