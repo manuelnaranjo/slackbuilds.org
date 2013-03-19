@@ -46,7 +46,12 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-CFLAGS="-O2 -I/${PREFIX}/include/evil-1" \
+case "${HOST_TRIPLET}" in
+  *-*-mingw*) CFLAGS_EVIL_LUA="$(pkg-config --cflags evil)" ;;
+           *) CFLAGS_EVIL_LUA="$(pkg-config --cflags lua)" ;;
+esac
+
+CFLAGS="-O2 ${CFLAGS_EVIL_LUA}" \
 ./configure \
   --prefix=/${PREFIX} \
   --libdir=/${PREFIX}/lib${LIBDIRSUFFIX} \
