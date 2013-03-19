@@ -96,7 +96,7 @@ fi
 PC_DIR="$PKG/${PREFIX}/lib${LIBDIRSUFFIX}/pkgconfig"
 mkdir -p ${PC_DIR}
 cat $CWD/lua.pc > ${PC_DIR}/lua.pc
-sed -i "s|/${PREFIX}/local|/${PREFIX}|" ${PC_DIR}/lua.pc
+sed -i "s|/usr/local|/${PREFIX}|" ${PC_DIR}/lua.pc
 sed -i "s|prefix}/lib|prefix}/lib${LIBDIRSUFFIX}|g" ${PC_DIR}/lua.pc
 unset PC_DIR
 
