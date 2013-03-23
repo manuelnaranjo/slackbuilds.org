@@ -40,15 +40,6 @@ TMP=${TMP:-/tmp/SBo}
 PKG=$TMP/package-$PRGNAM
 OUTPUT=${OUTPUT:-/tmp}
 
-case "${HOST_TRIPLET}" in
-  i686-w64-mingw32)
-    LIBDIRSUFFIX=""
-    ;;
-  x86_64-w64-mingw32)
-    LIBDIRSUFFIX="64"
-    ;;
-esac
-
 BUILD_TRIPLET=${BUILD_TRIPLET:-${TARGET_TRIPLET}}
 HOST_TRIPLET=${HOST_TRIPLET:-${TARGET_TRIPLET}}
 
