@@ -37,6 +37,11 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
+case "${HOST_TRIPLET}" in
+  *-*-mingw*) THREADS="--enable-win32-threads" ;;
+  *)          THEADS="" ;;
+esac
+
 CFLAGS="-O2" \
 ./configure \
   --prefix=/${PREFIX} \
@@ -49,6 +54,7 @@ CFLAGS="-O2" \
   --host=${HOST_TRIPLET} \
   --with-eet-eet=${YYPREFIX_NATIVE_TOOLCHAIN}/bin/eet \
   --with-edje-cc=${YYPREFIX_NATIVE_TOOLCHAIN}/bin/edje_cc \
+  ${THREADS} \
   --disable-static
 
 make -j7
