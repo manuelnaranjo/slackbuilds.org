@@ -47,6 +47,8 @@ CFLAGS="-O2 -I/${PREFIX}/include/evil-1" \
   --docdir=/${PREFIX}/doc/$PRGNAM-$VERSION \
   --build=$ARCH-slackware-linux \
   --host=${HOST_TRIPLET} \
+  --disable-openssl \
+  --disable-gnutls \
   --disable-static
 
 make -j7

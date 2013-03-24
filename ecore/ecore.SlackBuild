@@ -49,6 +49,8 @@ CXXFLAGS="-O2" \
   --build=$ARCH-slackware-linux \
   --host=${HOST_TRIPLET} \
   --enable-cares \
+  --disable-openssl \
+  --disable-gnutls \
   --disable-static
 
 make -j7
