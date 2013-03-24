@@ -37,6 +37,11 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
+case "${HOST_TRIPLET}" in
+  *-*-mingw*) THREADS="--enable-win32-threads" ;;
+  *)          THEADS="" ;;
+esac
+
 CFLAGS="-O2 -I/${PREFIX}/include/evil-1" \
 CXXFLAGS="-O2" \
 ./configure \
@@ -51,6 +56,8 @@ CXXFLAGS="-O2" \
   --enable-cares \
   --disable-openssl \
   --disable-gnutls \
+  --disable-glib \
+  ${THREADS} \
   --disable-static
 
 make -j7
