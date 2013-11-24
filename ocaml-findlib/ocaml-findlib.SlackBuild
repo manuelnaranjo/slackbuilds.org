@@ -21,7 +21,7 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 PRGNAM=ocaml-findlib
-VERSION=1.3.3
+VERSION=1.4
 BUILD=${BUILD:-1}
 TAG=${TAG:-_SBo}
 
@@ -85,7 +85,7 @@ cat ${CWD}/$PRGNAM.yypkg.script | sed \
   -e "s/%{PKG}/$PRGNAM/" \
   -e "s/%{HST}/${HOST_TRIPLET}/" \
   -e "s/%{TGT}//" \
-  -e "s/%{VER}/$(echo ${VERSION} | tr . ' ')/" \
+  -e "s/%{VER}/${VERSION}/" \
   -e "s/%{BUILD}/${BUILD}/" \
   -e "s/%{DESCR}/${DESCR:-"No description"}/" \
   | makeypkg -o ${YYOUTPUT} -script - "${PKG}/${PREFIX}"
