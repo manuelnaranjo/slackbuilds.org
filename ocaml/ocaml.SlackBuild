@@ -77,6 +77,19 @@ make install \
   PREFIX=$PKG/${PREFIX} \
   LIBDIR=$PKG/${PREFIX}/lib${LIBDIRSUFFIX}/ocaml
 
+mkdir -p "${PKG}/etc"
+
+cat > "$PKG/etc/findlib.conf" << EOF
+destdir="/${PREFIX}/lib${LIBDIRSUFFIX}/ocaml/site-lib"
+path="/${PREFIX}/lib${LIBDIRSUFFIX}/ocaml/site-lib"
+stdlib="/${PREFIX}/lib${LIBDIRSUFFIX}/ocaml"
+ldconf="/${PREFIX}/lib${LIBDIRSUFFIX}/ocaml/ld.conf"
+ocamlc="ocamlc.opt.exe"
+ocamlopt="ocamlopt.opt.exe"
+ocamldep="ocamldep.opt"
+ocamldoc="ocamldoc.opt"
+EOF
+
 find $PKG | xargs file | egrep "executable|shared object" \
   | grep ${HOST_EXE_FORMAT} | cut -f 1 -d : \
   | xargs ${HOST_STRIP} --strip-unneeded 2> /dev/null || true
