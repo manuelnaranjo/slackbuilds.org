@@ -50,11 +50,18 @@ cd $SRCNAM-$VERSION
 chown -R root:root .
 chmod -R u+w,go+r-w,a-s .
 
+if [ x"${TARGET_TRIPLET}" != x"${HOST_TRIPLET}" ]; then
+  TOPFIND="-no-topfind"
+else
+  TOPFIND=""
+fi
+
 CFLAGS="-O2" \
 ./configure \
   -bindir  /${PREFIX}/bin \
   -mandir  /${PREFIX}/man \
   -sitelib /${PREFIX}/lib$LIBDIRSUFFIX/ocaml/site-lib \
+  ${TOPFIND} \
   -config  /${PREFIX}/etc/findlib.conf
 make all opt
 make install prefix=$PKG
