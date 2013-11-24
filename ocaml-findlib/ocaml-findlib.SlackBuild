@@ -66,6 +66,17 @@ CFLAGS="-O2" \
 make all opt
 make install prefix=$PKG
 
+if [ x"${TARGET_TRIPLET}" = x"i686-w64-mingw32" ]; then
+  cat > "$PKG/${PREFIX}/etc/findlib.conf" << EOF
+destdir="/${PREFIX}/lib${LIBDIRSUFFIX}/ocaml/site-lib"
+path="/${PREFIX}/lib${LIBDIRSUFFIX}/ocaml/site-lib"
+ocamlc="ocamlc.opt.exe"
+ocamlopt="ocamlopt.opt.exe"
+ocamldep="ocamldep.opt"
+ocamldoc="ocamldoc.opt"
+EOF
+fi
+
 # see INSTALL in the tarball or ocamlfind(1) to get detailed
 mkdir -p $PKG/${PREFIX}/lib$LIBDIRSUFFIX/ocaml/site-lib/stublibs
 
