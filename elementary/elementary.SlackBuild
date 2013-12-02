@@ -37,6 +37,10 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
+# Default to the software_gdi engine
+sed -i '/_elm_config->engine = eina_stringshare_add("software_x11");/ s/x11/gdi/' src/lib/elm_config.c
+
+
 case "${HOST_TRIPLET}" in
   *-*-mingw*) THREADS="--enable-win32-threads" ;;
   *)          THEADS="" ;;
