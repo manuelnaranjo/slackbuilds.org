@@ -70,6 +70,8 @@ if [ x"${TARGET_TRIPLET}" = x"i686-w64-mingw32" ]; then
   cat > "$PKG/${PREFIX}/etc/findlib.conf" << EOF
 destdir="/${PREFIX}/lib${LIBDIRSUFFIX}/ocaml/site-lib"
 path="/${PREFIX}/lib${LIBDIRSUFFIX}/ocaml/site-lib"
+stdlib="/${PREFIX}/lib${LIBDIRSUFFIX}/ocaml"
+ldconf="/${PREFIX}/lib${LIBDIRSUFFIX}/ocaml/ld.conf"
 ocamlc="ocamlc.opt.exe"
 ocamlopt="ocamlopt.opt.exe"
 ocamldep="ocamldep.opt"
