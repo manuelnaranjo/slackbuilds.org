@@ -62,6 +62,8 @@ if [ x"$TARGET_TRIPLET" != x"$HOST_TRIPLET" ]; then
   TARGET="--target ${TARGET_TRIPLET}"
 fi
 
+sed -i 's;\\\.\\\.\\/;\0\0;g' tools/cleanup-header
+
 CFLAGS="-O2" ./configure \
   --prefix /${PREFIX} \
   --libdir /${PREFIX}/lib${LIBDIRSUFFIX}/ocaml \
