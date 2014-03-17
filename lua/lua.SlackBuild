@@ -40,7 +40,7 @@ cd $PRGNAM-$VERSION
 chown -R root:root .
 
 # Fix up a to-be-installed header and the pkgconfig file
-sed -i "s|/${PREFIX}/local|/${PREFIX}|" src/luaconf.h
+sed -i "s|/usr/local|/${PREFIX}|" src/luaconf.h
 sed -i "s|lib/lua|lib$LIBDIRSUFFIX/lua|" src/luaconf.h
 
 if echo "${HOST_TRIPLET}" | grep -qv mingw; then
