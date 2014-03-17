@@ -60,9 +60,9 @@ if [ x"$TARGET_TRIPLET" != x"$HOST_TRIPLET" ]; then
   done
   DISABLES="-no-ocamldoc -no-debugger -no-camlp4 -no-ocamlbuild "
   TARGET="--target ${TARGET_TRIPLET}"
-fi
 
-sed -i 's;\\\.\\\.\\/;\0\0;g' tools/cleanup-header
+  sed -i 's;\\\.\\\.\\/;\0\0;g' tools/cleanup-header
+fi
 
 CFLAGS="-O2" ./configure \
   --prefix /${PREFIX} \
