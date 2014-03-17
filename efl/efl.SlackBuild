@@ -1,11 +1,11 @@
 #!/bin/sh
 
-# Slackware build script for Edje
+# Slackware build script for efl
 
 # Written by Aleksandar Samardzic <asamardzic@gmail.com>
 
-PRGNAM=edje
-VERSION=${VERSION:-1.7.9}
+PRGNAM=efl
+VERSION=${VERSION:-1.9.1}
 BUILD=${BUILD:-1}
 TAG=${TAG:-_SBo}
 
@@ -28,7 +28,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG $OUTPUT
 cd $TMP
 rm -rf $PRGNAM-$VERSION
-tar xvf $CWD/$PRGNAM-$VERSION.tar.gz
+tar xvf $CWD/$PRGNAM-$VERSION.tar.bz2
 cd $PRGNAM-$VERSION
 chown -R root:root .
 find . \
@@ -37,12 +37,14 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-case "${HOST_TRIPLET}" in
-  *-*-mingw*) CFLAGS_EVIL_LUA="$(pkg-config --cflags evil)" ;;
-           *) CFLAGS_EVIL_LUA="$(pkg-config --cflags lua)" ;;
-esac
+# sed -i 's/#if ! \(_WIN32_WINNT >= _WIN32_WINNT_VISTA\)/#if ! (\1)/' src/lib/evil_inet.{c,h}
+sed -i 's/_WIN32_WINNT_VISTA/0x600/' src/lib/evil/evil_inet.{c,h}
+# sed -i 's/strtok_r/strtok_s/' src/lib/evas/filters/evas_filter_parser.c
 
-CFLAGS="-O2 ${CFLAGS_EVIL_LUA}" \
+unset $TERM
+
+CFLAGS="-O2" \
+CXXFLAGS="-O2" \
 ./configure \
   --prefix=/${PREFIX} \
   --libdir=/${PREFIX}/lib${LIBDIRSUFFIX} \
@@ -52,10 +54,18 @@ CFLAGS="-O2 ${CFLAGS_EVIL_LUA}" \
   --docdir=/${PREFIX}/doc/$PRGNAM-$VERSION \
   --build=$ARCH-slackware-linux \
   --host=${HOST_TRIPLET} \
-  --disable-edje-recc \
+  --disable-pulseaudio \
+  --disable-physics \
+  --disable-gstreamer \
+  --disable-gstreamer1 \
+  --enable-lua-old \
+  --with-crypto=none \
+  --with-tests=none \
+  --enable-i-really-know-what-i-am-doing-and-that-this-will-probably-break-things-and-i-will-fix-them-myself-and-send-patches-aaa \
+  --with-edje-cc=edje_cc \
   --disable-static
 
-make -j7
+make -j4 || make
 make install DESTDIR=$PKG
 
 find $PKG | xargs file | egrep -e "executable|shared object" \

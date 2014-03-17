@@ -1,11 +1,11 @@
 #!/bin/sh
 
-# Slackware build script for Elementary
+# Slackware build script for elementary
 
 # Written by Aleksandar Samardzic <asamardzic@gmail.com>
 
 PRGNAM=elementary
-VERSION=${VERSION:-1.7.9}
+VERSION=${VERSION:-1.9.1}
 BUILD=${BUILD:-1}
 TAG=${TAG:-_SBo}
 
@@ -40,13 +40,22 @@ find . \
 # Default to the software_gdi engine
 sed -i '/_elm_config->engine = eina_stringshare_add("software_x11");/ s/x11/gdi/' src/lib/elm_config.c
 
+unset $TERM
 
-case "${HOST_TRIPLET}" in
-  *-*-mingw*) THREADS="--enable-win32-threads" ;;
-  *)          THEADS="" ;;
-esac
+if [ x"${HOST_TRIPLET}" != x"${BUILD_TRIPLET}" ]; then
+  WITH_EET_EET="--with-eet-eet=${YYPREFIX_NATIVE_TOOLCHAIN}/bin/eet"
+  WITH_EDJE_CC="--with-edje-cc=${YYPREFIX_NATIVE_TOOLCHAIN}/bin/edje_cc"
+  WITH_ELEMENTARY_CODEGEN="--with-elementary-codegen=${YYPREFIX_NATIVE_TOOLCHAIN}/bin/elementary_codegen"
+  WITH_ELM_PREFS_CC="--with-elm-prefs-cc=${YYPREFIX_NATIVE_TOOLCHAIN}/bin/elm_prefs_cc"
+else
+  WITH_EET_EET=""
+  WITH_EDJE_CC=""
+  WITH_ELEMENTARY_CODEGEN=""
+  WITH_ELM_PREFS_CC=""
+fi
 
 CFLAGS="-O2" \
+CXXFLAGS="-O2" \
 ./configure \
   --prefix=/${PREFIX} \
   --libdir=/${PREFIX}/lib${LIBDIRSUFFIX} \
@@ -56,12 +65,13 @@ CFLAGS="-O2" \
   --docdir=/${PREFIX}/doc/$PRGNAM-$VERSION \
   --build=$ARCH-slackware-linux \
   --host=${HOST_TRIPLET} \
-  --with-eet-eet=${YYPREFIX_NATIVE_TOOLCHAIN}/bin/eet \
-  --with-edje-cc=${YYPREFIX_NATIVE_TOOLCHAIN}/bin/edje_cc \
-  ${THREADS} \
+  ${WITH_EET_EET} \
+  ${WITH_EDJE_CC} \
+  ${WITH_ELEMENTARY_CODEGEN} \
+  ${WITH_ELM_PREFS_CC} \
   --disable-static
 
-make -j7
+make -j4 || make
 make install DESTDIR=$PKG
 
 find $PKG | xargs file | egrep -e "executable|shared object" \

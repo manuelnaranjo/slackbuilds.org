@@ -6,14 +6,14 @@
 # leave one space after the ':'.
 
     |-----handy-ruler------------------------------------------------------|
-edje: Edje (one of the Enlightenment DR17 foundation libraries)
-edje:
-edje: Edje is a complex graphical design & layout library.
-edje:
-edje: Edje home page is: http://www.enlightenment.org/
-edje:
-edje:
-edje:
-edje:
-edje:
-edje:
+eina: EFL (Enlightenment core library)
+eina:
+eina: EFL holds most of the libraries used for the toolkit of the same name
+eina: and the Enlightenment window manager.
+eina: 
+eina: Homepage: http://www.enlightenment.org/
+eina: 
+eina: 
+eina: 
+eina: 
+eina: 
