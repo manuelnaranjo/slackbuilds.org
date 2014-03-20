@@ -43,6 +43,14 @@ sed -i 's/_WIN32_WINNT_VISTA/0x600/' src/lib/evil/evil_inet.{c,h}
 
 unset $TERM
 
+if [ x"${HOST_TRIPLET}" != x"${BUILD_TRIPLET}" ]; then
+  WITH_CRYPTO="--with-crypto=none"
+  WITH_EDJE_CC="--with-edje-cc=edje-cc"
+else
+  WITH_CRYPTO=""
+  WITH_EDJE_CC=""
+fi
+
 CFLAGS="-O2" \
 CXXFLAGS="-O2" \
 ./configure \
@@ -59,10 +67,10 @@ CXXFLAGS="-O2" \
   --disable-gstreamer \
   --disable-gstreamer1 \
   --enable-lua-old \
-  --with-crypto=none \
+  ${WITH_CRYPTO} \
   --with-tests=none \
   --enable-i-really-know-what-i-am-doing-and-that-this-will-probably-break-things-and-i-will-fix-them-myself-and-send-patches-aaa \
-  --with-edje-cc=edje_cc \
+  ${WITH_EDJE_CC} \
   --disable-static
 
 make -j4 || make
