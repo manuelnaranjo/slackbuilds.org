@@ -45,7 +45,7 @@ unset $TERM
 
 if [ x"${HOST_TRIPLET}" != x"${BUILD_TRIPLET}" ]; then
   WITH_CRYPTO="--with-crypto=none"
-  WITH_EDJE_CC="--with-edje-cc=edje-cc"
+  WITH_EDJE_CC="--with-edje-cc=edje_cc"
 else
   WITH_CRYPTO=""
   WITH_EDJE_CC=""
