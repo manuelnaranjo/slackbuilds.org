@@ -6,14 +6,14 @@
 # leave one space after the ':'.
 
     |-----handy-ruler------------------------------------------------------|
-eina: EFL (Enlightenment core library)
-eina:
-eina: EFL holds most of the libraries used for the toolkit of the same name
-eina: and the Enlightenment window manager.
-eina: 
-eina: Homepage: http://www.enlightenment.org/
-eina: 
-eina: 
-eina: 
-eina: 
-eina: 
+efl: EFL (Enlightenment core library)
+efl:
+efl: EFL holds most of the libraries used for the toolkit of the same name
+efl: and the Enlightenment window manager.
+efl: 
+efl: Homepage: http://www.enlightenment.org/
+efl: 
+efl: 
+efl: 
+efl: 
+efl: 
