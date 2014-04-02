@@ -43,10 +43,10 @@ sed -i '/_elm_config->engine = eina_stringshare_add("software_x11");/ s/x11/gdi/
 unset $TERM
 
 if [ x"${HOST_TRIPLET}" != x"${BUILD_TRIPLET}" ]; then
-  WITH_EET_EET="--with-eet-eet=${YYPREFIX_NATIVE_TOOLCHAIN}/bin/eet"
-  WITH_EDJE_CC="--with-edje-cc=${YYPREFIX_NATIVE_TOOLCHAIN}/bin/edje_cc"
-  WITH_ELEMENTARY_CODEGEN="--with-elementary-codegen=${YYPREFIX_NATIVE_TOOLCHAIN}/bin/elementary_codegen"
-  WITH_ELM_PREFS_CC="--with-elm-prefs-cc=${YYPREFIX_NATIVE_TOOLCHAIN}/bin/elm_prefs_cc"
+  WITH_EET_EET="--with-eet-eet=${YYPREFIX_NATIVE}/bin/eet"
+  WITH_EDJE_CC="--with-edje-cc=${YYPREFIX_NATIVE}/bin/edje_cc"
+  WITH_ELEMENTARY_CODEGEN="--with-elementary-codegen=${YYPREFIX_NATIVE}/bin/elementary_codegen"
+  WITH_ELM_PREFS_CC="--with-elm-prefs-cc=${YYPREFIX_NATIVE}/bin/elm_prefs_cc"
 else
   WITH_EET_EET=""
   WITH_EDJE_CC=""
