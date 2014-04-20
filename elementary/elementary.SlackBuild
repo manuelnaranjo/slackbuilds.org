@@ -54,6 +54,10 @@ else
   WITH_ELM_PREFS_CC=""
 fi
 
+sed -i '/module_la_LIBADD/ s/$/ @EVIL_LIBS@/' src/modules/access_output/Makefile.am
+
+autoreconf -fiv
+
 CFLAGS="-O2" \
 CXXFLAGS="-O2" \
 ./configure \
