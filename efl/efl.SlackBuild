@@ -51,8 +51,17 @@ else
   WITH_EDJE_CC=""
 fi
 
+unset TERM
+
+if [ "x${HOST_TRIPLET}" != "x${BUILD_TRIPLET}" ]; then
+  LDFLAGS_WIN="-lws2_32 -lintl"
+else
+  LDFLAGS_WIN=""
+fi
+
 CFLAGS="-O2" \
 CXXFLAGS="-O2" \
+LDFLAGS="${LDFLAGS_WIN}" \
 ./configure \
   --prefix=/${PREFIX} \
   --libdir=/${PREFIX}/lib${LIBDIRSUFFIX} \
