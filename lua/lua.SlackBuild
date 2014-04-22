@@ -45,14 +45,14 @@ sed -i "s|lib/lua|lib$LIBDIRSUFFIX/lua|" src/luaconf.h
 
 if echo "${HOST_TRIPLET}" | grep -qv mingw; then
   make linux \
-    CFLAGS="$SLKCFLAGS -fPIC \$(MYCFLAGS)" \
+    EXTRA_CFLAGS="-O2 -fPIC" \
     INSTALL_TOP=/${PREFIX} \
     INSTALL_LIB=/${PREFIX}/lib${LIBDIRSUFFIX} \
     INSTALL_LMOD=/${PREFIX}/share/lua/5.1 \
     INSTALL_CMOD=/${PREFIX}/lib${LIBDIRSUFFIX}/lua/5.1
 
   make linux install \
-    CFLAGS="$SLKCFLAGS -fPIC \$(MYCFLAGS)" \
+    EXTRA_CFLAGS="-O2 -fPIC" \
     INSTALL_TOP=$PKG/${PREFIX} \
     INSTALL_LIB=$PKG/${PREFIX}/lib${LIBDIRSUFFIX} \
     INSTALL_LMOD=$PKG/${PREFIX}/share/lua/5.1 \
