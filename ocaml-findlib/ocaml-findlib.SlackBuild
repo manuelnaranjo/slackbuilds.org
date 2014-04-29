@@ -76,6 +76,7 @@ ocamlc="ocamlc.opt.exe"
 ocamlopt="ocamlopt.opt.exe"
 ocamldep="ocamldep.opt"
 ocamldoc="ocamldoc.opt"
+ocamlmklib="ocamlmklib.exe"
 EOF
 fi
 
