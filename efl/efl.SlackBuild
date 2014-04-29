@@ -55,7 +55,7 @@ unset TERM
 
 case "${HOST_TRIPLET}" in
   *-*-mingw*)
-    LDFLAGS_WIN="-lws2_32 -lintl -L/${PREFIX}/lib${LIBDIRSUFFIX}"
+    LDFLAGS_WIN="-lws2_32 -lintl"
     ;;
   *)
     LDFLAGS_WIN=""
@@ -64,7 +64,7 @@ esac
 
 CFLAGS="-O2" \
 CXXFLAGS="-O2" \
-LDFLAGS="${LDFLAGS_WIN}" \
+LDFLAGS="${LDFLAGS_WIN} -L/${PREFIX}/lib${LIBDIRSUFFIX}" \
 ./configure \
   --prefix=/${PREFIX} \
   --libdir=/${PREFIX}/lib${LIBDIRSUFFIX} \
