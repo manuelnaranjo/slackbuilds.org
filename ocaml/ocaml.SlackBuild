@@ -58,7 +58,7 @@ if [ x"$TARGET_TRIPLET" != x"$HOST_TRIPLET" ]; then
   for p in $CWD/cross-patches-rev6-2013-03-06/*; do
     patch -p1 -i $p
   done
-  DISABLES="-no-ocamldoc -no-debugger -no-camlp4 -no-ocamlbuild "
+  DISABLES="-no-ocamldoc -no-debugger -no-ocamlbuild "
   TARGET="--target ${TARGET_TRIPLET}"
 
   sed -i 's;\\\.\\\.\\/;\0\0;g' tools/cleanup-header
@@ -68,6 +68,7 @@ CFLAGS="-O2" ./configure \
   --prefix /${PREFIX} \
   --libdir /${PREFIX}/lib${LIBDIRSUFFIX}/ocaml \
   --host ${HOST_TRIPLET} \
+  -no-camlp4 -no-tk \
   ${TARGET} \
   ${DISABLES}
 
