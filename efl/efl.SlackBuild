@@ -41,8 +41,6 @@ find . \
 sed -i 's/_WIN32_WINNT_VISTA/0x600/' src/lib/evil/evil_inet.{c,h}
 # sed -i 's/strtok_r/strtok_s/' src/lib/evas/filters/evas_filter_parser.c
 
-unset $TERM
-
 if [ x"${HOST_TRIPLET}" != x"${BUILD_TRIPLET}" ]; then
   WITH_CRYPTO="--with-crypto=none"
   WITH_EDJE_CC="--with-edje-cc=edje_cc"
