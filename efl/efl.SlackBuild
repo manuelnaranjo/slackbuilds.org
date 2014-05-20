@@ -60,6 +60,10 @@ case "${HOST_TRIPLET}" in
     ;;
 esac
 
+patch -p1 -i $CWD/win32-fix-ecore_evas-engine-search-path.patch || exit 1
+sed -i "/eina_module_symbol_path_get/ s;/\.\./lib/;/../lib${LIBDIRSUFFIX}/;" \
+  src/lib/ecore_evas/ecore_evas_module.c
+
 CFLAGS="-O2" \
 CXXFLAGS="-O2" \
 LDFLAGS="${LDFLAGS_WIN} -L/${PREFIX}/lib${LIBDIRSUFFIX}" \
