@@ -1,0 +1,80 @@
+From d1068e3af2c0e12ac3be87eb2cc6e72806d80352 Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Sun, 13 Jan 2013 16:50:27 +0100
+Subject: [PATCH 23/34] STASH
+
+---
+ build/boot.sh                       | 6 +++---
+ build/targets.sh                    | 2 +-
+ byterun/Makefile                    | 8 ++++----
+ otherlibs/bigarray/libbigarray.clib | 2 +-
+ 4 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/build/boot.sh b/build/boot.sh
+index c0d49a2..a055ac4 100755
+--- a/build/boot.sh
++++ b/build/boot.sh
+@@ -23,17 +23,17 @@ STDLIB_MODULES='Pervasives,Arg,Array,Buffer,Char,Digest,Filename,Format,Hashtbl,
+   -tag-line "$TAG_LINE" \
+   boot/stdlib.cma boot/std_exit.cmo
+ 
+-boot/ocamlrun boot/myocamlbuild.boot \
++ocamlbuild \
+   -tag-line "$TAG_LINE" -log _boot_log1 \
+   ocamlbuild/ocamlbuildlightlib.cma ocamlbuild/ocamlbuildlight.byte
+ 
+ rm -f _build/myocamlbuild
+ 
+-boot/ocamlrun boot/myocamlbuild.boot \
++ocamlbuild \
+   -just-plugin -install-lib-dir _build/ocamlbuild -byte-plugin
+ 
+ cp _build/myocamlbuild boot/myocamlbuild
+ 
+-./boot/ocamlrun boot/myocamlbuild \
++ocamlbuild \
+   -tag-line "$TAG_LINE" \
+   $@ -log _boot_log2 boot/camlheader ocamlc
+diff --git a/build/targets.sh b/build/targets.sh
+index 219f73c..9b34759 100644
+--- a/build/targets.sh
++++ b/build/targets.sh
+@@ -58,5 +58,5 @@ OCAMLBUILD_NATIVE="$OCAMLBUILDLIB_NATIVE \
+ if [ -x boot/myocamlbuild.native ]; then
+   OCAMLBUILD=./boot/myocamlbuild.native
+ else
+-  OCAMLBUILD="./boot/ocamlrun boot/myocamlbuild"
++  OCAMLBUILD="ocamlbuild"
+ fi
+diff --git a/byterun/Makefile b/byterun/Makefile
+index f94eff5..ca71549 100644
+--- a/byterun/Makefile
++++ b/byterun/Makefile
+@@ -29,13 +29,13 @@ SHARED_LIBS_DEPS=$(SHARED_LIBS_TMP:%true=libcamlrun_shared.so)
+ 
+ all:: $(SHARED_LIBS_DEPS)
+ 
+-ocamlrun$(EXE): libcamlrun.a prims.o
++ocamlrun$(EXE): libcamlrun.$(A) prims.$(O)
+ 	$(MKEXE) $(BYTECCLINKOPTS) -o ocamlrun$(EXE) \
+-		  prims.o libcamlrun.a $(BYTECCLIBS)
++		  prims.$(O) libcamlrun.$(A) $(BYTECCLIBS)
+ 
+-ocamlrund$(EXE): libcamlrund.a prims.o
++ocamlrund$(EXE): libcamlrund.$(A) prims.$(O)
+ 	$(MKEXE) $(MKEXEDEBUGFLAG) $(BYTECCLINKOPTS) -o ocamlrund$(EXE) \
+-		  prims.o libcamlrund.a $(BYTECCLIBS)
++		  prims.$(O) libcamlrund.$(A) $(BYTECCLIBS)
+ 
+ libcamlrun.a: $(OBJS)
+ 	$(call MKLIB,libcamlrun.$(A),$(OBJS))
+diff --git a/otherlibs/bigarray/libbigarray.clib b/otherlibs/bigarray/libbigarray.clib
+index 4dc96a4..16661bb 100644
+--- a/otherlibs/bigarray/libbigarray.clib
++++ b/otherlibs/bigarray/libbigarray.clib
+@@ -1 +1 @@
+-bigarray_stubs.o mmap_unix.o
++bigarray_stubs.o mmap_win32.o
+-- 
+1.8.1.4
+

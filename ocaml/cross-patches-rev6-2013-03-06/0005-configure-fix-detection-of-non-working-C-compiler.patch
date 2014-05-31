@@ -1,0 +1,50 @@
+From 76669004485688be8e246f53206b75ec325d8a84 Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Sun, 16 Dec 2012 20:11:53 +0100
+Subject: [PATCH 05/34] configure: fix detection of non-working C compiler.
+
+The test tried to do something like:
+  case "$foo,$bar" in
+    *,*) echo 1 ;;
+    *) echo "compiler not working" ;;
+   esac
+However the second case cannot match because of the first one.
+
+Instead, check the return code of the command.
+---
+ configure | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/configure b/configure
+index 6897142..3577c6b 100755
+--- a/configure
++++ b/configure
+@@ -376,7 +376,15 @@ esac
+ # Check the sizes of data types
+ 
+ inf "Checking the sizes of integers and pointers..."
+-set `sh ./runtest sizes.c`
++ret=`sh ./runtest sizes.c`
++
++if test "$?" -ne 0; then
++  err "Unable to compile the test program.\n" \
++      "Make sure the C compiler '$cc' is properly installed."
++fi
++
++set $ret
++
+ case "$2,$3" in
+   4,4) inf "OK, this is a regular 32 bit architecture."
+        echo "#undef ARCH_SIXTYFOUR" >> m.h
+@@ -386,8 +394,6 @@ case "$2,$3" in
+        arch64=true;;
+   *,*) err "This architecture seems to be neither 32 bits nor 64 bits.\n" \
+            "OCaml won't run on this architecture.";;
+-    *) err "Unable to compile the test program.\n" \
+-           "Make sure the C compiler $cc is properly installed.";;
+ esac
+ if test $1 != 4 && test $2 != 4 && test $4 != 4; then
+   err "Sorry, we can't find a 32-bit integer type\n" \
+-- 
+1.8.1.4
+

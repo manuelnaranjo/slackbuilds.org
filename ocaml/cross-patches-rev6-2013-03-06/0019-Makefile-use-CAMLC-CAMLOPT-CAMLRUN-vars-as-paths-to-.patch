@@ -1,0 +1,89 @@
+From 56d6630322a74b9358c0794134b1a8e53920228e Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Sun, 6 Jan 2013 19:21:18 +0100
+Subject: [PATCH 19/34] Makefile: use CAMLC/CAMLOPT/CAMLRUN vars as paths to
+ these binaries.
+
+---
+ Makefile | 31 +++++++++++++++----------------
+ 1 file changed, 15 insertions(+), 16 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index bd8014c..84a6b11 100644
+--- a/Makefile
++++ b/Makefile
+@@ -15,17 +15,16 @@
+ include config/Makefile
+ include stdlib/StdlibModules
+ 
+-CAMLC=boot/ocamlrun boot/ocamlc -nostdlib -I boot
+-CAMLOPT=boot/ocamlrun ./ocamlopt -nostdlib -I stdlib -I otherlibs/dynlink
++CAMLC=$(CAMLRUN) boot/ocamlc -nostdlib -I boot
++CAMLOPT=$(CAMLRUN) ./ocamlopt -nostdlib -I stdlib -I otherlibs/dynlink
+ COMPFLAGS=-strict-sequence -w +33..39 -warn-error A $(INCLUDES)
+ LINKFLAGS=
+ 
+ CAMLYACC=boot/ocamlyacc
+ YACCFLAGS=-v
+-CAMLLEX=boot/ocamlrun boot/ocamllex
+-CAMLDEP=boot/ocamlrun tools/ocamldep
++CAMLLEX=$(CAMLRUN) boot/ocamllex
++CAMLDEP=$(CAMLRUN) tools/ocamldep
+ DEPFLAGS=$(INCLUDES)
+-CAMLRUN=byterun/ocamlrun
+ SHELL=/bin/sh
+ MKDIR=mkdir -p
+ 
+@@ -346,8 +345,8 @@ partialclean::
+ 
+ ocamlc: compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma $(BYTESTART)
+ 	$(CAMLC) $(LINKFLAGS) -o ocamlc \
+-	   compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma $(BYTESTART)
+-	@sed -e 's|@compiler@|$$topdir/boot/ocamlrun $$topdir/ocamlc|' \
++		compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma $(BYTESTART)
++	@sed -e 's|@compiler@|$(CAMLRUN) $(ROOTDIR)/ocamlc|' \
+ 	  driver/ocamlcomp.sh.in > ocamlcomp.sh
+ 	@chmod +x ocamlcomp.sh
+ 
+@@ -360,8 +359,8 @@ partialclean::
+ 
+ ocamlopt: compilerlibs/ocamlcommon.cma compilerlibs/ocamloptcomp.cma $(OPTSTART)
+ 	$(CAMLC) $(LINKFLAGS) -o ocamlopt \
+-	  compilerlibs/ocamlcommon.cma compilerlibs/ocamloptcomp.cma $(OPTSTART)
+-	@sed -e 's|@compiler@|$$topdir/boot/ocamlrun $$topdir/ocamlopt|' \
++		compilerlibs/ocamlcommon.cma compilerlibs/ocamloptcomp.cma $(OPTSTART)
++	@sed -e 's|@compiler@|$(CAMLRUN) $(ROOTDIR)/ocamlopt|' \
+ 	  driver/ocamlcomp.sh.in > ocamlcompopt.sh
+ 	@chmod +x ocamlcompopt.sh
+ 
+@@ -470,10 +469,10 @@ partialclean::
+ 
+ ocamlc.opt: compilerlibs/ocamlcommon.cmxa compilerlibs/ocamlbytecomp.cmxa $(BYTESTART:.cmo=.cmx)
+ 	$(CAMLOPT) $(LINKFLAGS) -ccopt "$(BYTECCLINKOPTS)" -o ocamlc.opt \
+-	  compilerlibs/ocamlcommon.cmxa compilerlibs/ocamlbytecomp.cmxa \
+-	  $(BYTESTART:.cmo=.cmx) -cclib "$(BYTECCLIBS)"
+-	@sed -e 's|@compiler@|$$topdir/ocamlc.opt|' \
+-	  driver/ocamlcomp.sh.in > ocamlcomp.sh
++		compilerlibs/ocamlcommon.cmxa compilerlibs/ocamlbytecomp.cmxa \
++		$(BYTESTART:.cmo=.cmx) -cclib "$(BYTECCLIBS)"
++	@sed -e 's|@compiler@|$(ROOTDIR)/ocamlc.opt|' \
++		driver/ocamlcomp.sh.in > ocamlcomp.sh
+ 	@chmod +x ocamlcomp.sh
+ 
+ partialclean::
+@@ -488,9 +487,9 @@ partialclean::
+ 
+ ocamlopt.opt: compilerlibs/ocamlcommon.cmxa compilerlibs/ocamloptcomp.cmxa $(OPTSTART:.cmo=.cmx)
+ 	$(CAMLOPT) $(LINKFLAGS) -o ocamlopt.opt \
+-	   compilerlibs/ocamlcommon.cmxa compilerlibs/ocamloptcomp.cmxa \
+-	   $(OPTSTART:.cmo=.cmx)
+-	@sed -e 's|@compiler@|$$topdir/ocamlopt.opt|' \
++		compilerlibs/ocamlcommon.cmxa compilerlibs/ocamloptcomp.cmxa \
++		$(OPTSTART:.cmo=.cmx)
++	@sed -e 's|@compiler@|$(ROOTDIR)/ocamlopt.opt|' \
+ 	  driver/ocamlcomp.sh.in > ocamlcompopt.sh
+ 	@chmod +x ocamlcompopt.sh
+ 
+-- 
+1.8.1.4
+

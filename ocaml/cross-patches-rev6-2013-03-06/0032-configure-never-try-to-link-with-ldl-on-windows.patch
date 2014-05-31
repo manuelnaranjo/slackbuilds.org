@@ -1,0 +1,59 @@
+From 725547e12fd88bca78746a8793cd75d0d85f567f Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Tue, 5 Mar 2013 20:51:07 +0100
+Subject: [PATCH 32/34] configure: never try to link with -ldl on windows.
+
+Some libraries provide a dl-like implementation but these must be
+skipped even when presetn on windows.
+---
+ configure                     | 20 +++++++++-----------
+ otherlibs/systhreads/Makefile |  2 +-
+ 2 files changed, 10 insertions(+), 12 deletions(-)
+
+diff --git a/configure b/configure
+index 5493f22..93745a9 100755
+--- a/configure
++++ b/configure
+@@ -1223,17 +1223,15 @@ if sh ./hasgot -i locale.h && sh ./hasgot setlocale; then
+ fi
+ 
+ 
+-if sh ./hasgot $dllib dlopen; then
+-  inf "dlopen() found."
+-elif sh ./hasgot $dllib -ldl dlopen; then
+-  inf "dlopen() found in -ldl."
+-  dllib="$dllib -ldl"
+-else
+-  case "$target" in
+-    *-*-mingw*) ;;
+-    *) shared_libraries_supported=false
+-  esac
+-fi
++case "$target" in
++  *-*-mingw*) ;;
++  *) if sh ./hasgot $dllib dlopen; then
++       inf "dlopen() found."
++     elif sh ./hasgot $dllib -ldl dlopen; then
++       inf "dlopen() found in -ldl."
++       dllib="$dllib -ldl"
++     fi ;;
++esac
+ 
+ if $shared_libraries_supported; then
+   inf "Dynamic loading of shared libraries is supported."
+diff --git a/otherlibs/systhreads/Makefile b/otherlibs/systhreads/Makefile
+index de4bf1b..baa7aec 100644
+--- a/otherlibs/systhreads/Makefile
++++ b/otherlibs/systhreads/Makefile
+@@ -28,7 +28,7 @@ all: libthreads.$(A) threads.cma
+ allopt: libthreadsnat.$(A) threads.cmxa
+ 
+ libthreads.$(A): $(BYTECODE_C_OBJS)
+-	$(MKLIB) -o threads $(BYTECODE_C_OBJS) -lpthread
++	$(MKLIB) -o threads $(BYTECODE_C_OBJS) $(PTHREAD_LINK)
+ 
+ st_stubs_b.o: st_stubs.c st_posix.h
+ 	$(BYTECC) -O -I../../byterun $(BYTECCCOMPOPTS) $(SHAREDCCCOMPOPTS) \
+-- 
+1.8.1.4
+

@@ -1,0 +1,47 @@
+From a2f3cb85df55c3b18f97215fd68881e8362965bd Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Wed, 26 Dec 2012 22:16:43 +0100
+Subject: [PATCH 28/34] windows makefiles: use "dll" for the SO extension.
+
+The variable is seldom used and should probably be removed but for now,
+update it.
+---
+ config/Makefile.mingw   | 4 ++--
+ config/Makefile.mingw64 | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/config/Makefile.mingw b/config/Makefile.mingw
+index 94be7da..35bd2a2 100644
+--- a/config/Makefile.mingw
++++ b/config/Makefile.mingw
+@@ -46,9 +46,9 @@ CCOMPTYPE=cc
+ O=o
+ A=a
+ S=s
+-SO=s.o
++SO=dll
+ EXE=.exe
+-EXT_DLL=.dll
++EXT_DLL=.$(SO)
+ EXT_OBJ=.$(O)
+ EXT_LIB=.$(A)
+ EXT_ASM=.$(S)
+diff --git a/config/Makefile.mingw64 b/config/Makefile.mingw64
+index 44a31b9..e2ccd81 100644
+--- a/config/Makefile.mingw64
++++ b/config/Makefile.mingw64
+@@ -46,9 +46,9 @@ CCOMPTYPE=cc
+ O=o
+ A=a
+ S=s
+-SO=s.o
++SO=dll
+ EXE=.exe
+-EXT_DLL=.dll
++EXT_DLL=.$(SO)
+ EXT_OBJ=.$(O)
+ EXT_LIB=.$(A)
+ EXT_ASM=.$(S)
+-- 
+1.8.1.4
+

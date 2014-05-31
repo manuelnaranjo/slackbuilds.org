@@ -1,0 +1,102 @@
+#!/bin/sh
+
+# Slackware build script for ocaml
+
+# Copyright 2007-2011 Ferenc Deak <ferenc.deak@gmail.com>
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ''AS IS'' AND ANY EXPRESS OR IMPLIED
+# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+# EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+# OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+# OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+# ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+PRGNAM=ocaml
+VERSION=4.01.0
+BUILD=${BUILD:-2}
+TAG=${TAG:-_SBo}
+
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) ARCH=i486 ;;
+    arm*) ARCH=arm ;;
+       *) ARCH=$( uname -m ) ;;
+  esac
+fi
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp/SBo}
+PKG=$TMP/package-$PRGNAM
+OUTPUT=${OUTPUT:-/tmp}
+
+BUILD_TRIPLET=${BUILD_TRIPLET:-${TARGET_TRIPLET}}
+HOST_TRIPLET=${HOST_TRIPLET:-${TARGET_TRIPLET}}
+
+set -e
+
+rm -rf $PKG
+mkdir -p $TMP $PKG $OUTPUT
+cd $TMP
+rm -rf $PRGNAM-$VERSION
+tar -xvf $CWD/$PRGNAM-$VERSION-trunk.tar.gz
+cd $PRGNAM-$VERSION
+chown -R root:root .
+chmod -R u+w,go+r-w,a-s .
+
+if [ x"$TARGET_TRIPLET" != x"$HOST_TRIPLET" ]; then
+  for p in $CWD/cross-patches-rev6-2013-03-06/*; do
+    patch -p1 -i $p
+  done
+  DISABLES="-no-ocamldoc -no-debugger -no-ocamlbuild "
+  TARGET="--target ${TARGET_TRIPLET}"
+
+  sed -i 's;\\\.\\\.\\/;\0\0;g' tools/cleanup-header
+fi
+
+CFLAGS="-O2" ./configure \
+  --prefix /${PREFIX} \
+  --libdir /${PREFIX}/lib${LIBDIRSUFFIX}/ocaml \
+  --host ${HOST_TRIPLET} \
+  -no-camlp4 -no-tk \
+  ${TARGET} \
+  ${DISABLES}
+
+(cd build && ./mkconfig.sh)
+mkdir _build
+
+make -j1 world.opt
+make install \
+  PREFIX=$PKG/${PREFIX} \
+  LIBDIR=$PKG/${PREFIX}/lib${LIBDIRSUFFIX}/ocaml
+
+find $PKG | xargs file | egrep "executable|shared object" \
+  | grep ${HOST_EXE_FORMAT} | cut -f 1 -d : \
+  | xargs ${HOST_STRIP} --strip-unneeded 2> /dev/null || true
+
+find $PKG/${PREFIX}/man -type f -exec gzip -9 {} \;
+
+mkdir -p $PKG/${PREFIX}/doc/$PRGNAM-$VERSION
+cp -a Changes INSTALL LICENSE README README.win32 VERSION \
+  $PKG/${PREFIX}/doc/$PRGNAM-$VERSION
+cat $CWD/$PRGNAM.SlackBuild > $PKG/${PREFIX}/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
+
+cat ${CWD}/${PRGNAM}.yypkg.script | sed \
+  -e "s/%{PKG}/${PRGNAM}/" \
+  -e "s/%{HST}/${HOST_TRIPLET}/" \
+  -e "s/%{TGT}//" \
+  -e "s/%{VER}/${VERSION}/" \
+  -e "s/%{BUILD}/${BUILD}/" \
+  -e "s/%{DESCR}/${DESCR:-"No description"}/" \
+  | yypkg --makepkg --output ${YYOUTPUT} --script - --directory "${PKG}/${PREFIX}"
+

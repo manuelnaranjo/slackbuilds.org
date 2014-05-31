@@ -1,0 +1,22 @@
+From 4b30e3a95926db99850f1481fcac4d8c8b9cfd54 Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Thu, 28 Feb 2013 22:52:02 +0100
+Subject: [PATCH 30/34] configure: run mkconfig.sh automatically at the end of
+ configuration.
+
+---
+ configure | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/configure b/configure
+index 143e978..0f19cbc 100755
+--- a/configure
++++ b/configure
+@@ -1933,3 +1933,4 @@ inf
+ if test ! -z "$MACOSX_DEPLOYMENT_TARGET"; then
+   wrn "The environment variable MACOSX_DEPLOYMENT_TARGET is set.\nThis will probably prevent compiling the OCaml system."
+ fi
++(cd ../../build && ./mkconfig.sh)
+-- 
+1.8.1.4
+

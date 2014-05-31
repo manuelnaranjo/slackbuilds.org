@@ -1,0 +1,42 @@
+From 82cbbb4d8d986faa6da78812dae95eebb565d47a Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Sun, 6 Jan 2013 19:24:03 +0100
+Subject: [PATCH 18/34] ocamldoc/runocamldoc: remove it; it's unused now.
+
+---
+ ocamldoc/runocamldoc | 23 -----------------------
+ 1 file changed, 23 deletions(-)
+ delete mode 100644 ocamldoc/runocamldoc
+
+diff --git a/ocamldoc/runocamldoc b/ocamldoc/runocamldoc
+deleted file mode 100644
+index d2112e9..0000000
+--- a/ocamldoc/runocamldoc
++++ /dev/null
+@@ -1,23 +0,0 @@
+-#!/bin/sh
+-
+-#######################################################################
+-#                                                                     #
+-#                                OCaml                                #
+-#                                                                     #
+-#            Xavier Leroy, projet Cristal, INRIA Rocquencourt         #
+-#                                                                     #
+-#  Copyright 2002 Institut National de Recherche en Informatique et   #
+-#  en Automatique.  All rights reserved.  This file is distributed    #
+-#  under the terms of the Q Public License version 1.0.               #
+-#                                                                     #
+-#######################################################################
+-
+-case "$1" in
+-  true) shift
+-        exec ../boot/ocamlrun  -I ../otherlibs/unix -I ../otherlibs/str \
+-             ./ocamldoc "$@"
+-        ;;
+-     *) shift
+-        exec ./ocamldoc "$@"
+-        ;;
+-esac
+-- 
+1.8.1.4
+

@@ -1,0 +1,94 @@
+From d984a9b8dc43544be625bed98a85eb6b8dd34631 Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Sun, 6 Jan 2013 18:26:57 +0100
+Subject: [PATCH 16/34] ocamldoc/Makefile: remove uneeded OCAMLDOC and
+ OCAMLDOC_OPT variables.
+
+OCAMLDOC=ocamldoc
+OCAMLDOC_OPT=ocamldoc.opt
+
+These variables are only used in the names of make rules and in install
+or clean rules. Deciding which binary to run is done through the
+OCAMLDOC_RUN variable.
+
+OCAMLDOC_RUN is going to disappear too and OCAMLDOC will be used instead
+(it's more consistent with "OCAMLRUN").
+---
+ ocamldoc/Makefile | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/ocamldoc/Makefile b/ocamldoc/Makefile
+index 59295a9..122f7e6 100644
+--- a/ocamldoc/Makefile
++++ b/ocamldoc/Makefile
+@@ -29,9 +29,7 @@ OCAMLPP=-pp './remove_DEBUG'
+ ##############
+ MKDIR=mkdir -p
+ CP=cp -f
+-OCAMLDOC=ocamldoc
+ OCAMLDOC_RUN=sh ./runocamldoc $(SUPPORTS_SHARED_LIBRARIES)
+-OCAMLDOC_OPT=$(OCAMLDOC).opt
+ OCAMLDOC_LIBCMA=odoc_info.cma
+ OCAMLDOC_LIBCMI=odoc_info.cmi
+ OCAMLDOC_LIBCMXA=odoc_info.cmxa
+@@ -200,21 +198,21 @@ STDLIB_MLIS=../stdlib/*.mli \
+ 
+ all: exe lib generators manpages
+ 
+-exe: $(OCAMLDOC)
++exe: ocamldoc
+ lib: $(OCAMLDOC_LIBCMA) $(OCAMLDOC_LIBCMI) $(ODOC_TEST)
+ generators: $(GENERATORS_CMOS)
+ 
+ opt.opt: exeopt libopt generatorsopt
+-exeopt: $(OCAMLDOC_OPT)
++exeopt: ocamldoc.opt
+ libopt: $(OCAMLDOC_LIBCMXA) $(OCAMLDOC_LIBCMI)
+ generatorsopt: $(GENERATORS_CMXS)
+ 
+ debug:
+ 	$(MAKE) OCAMLPP=""
+ 
+-$(OCAMLDOC): $(EXECMOFILES)
++ocamldoc: $(EXECMOFILES)
+ 	$(OCAMLC) -o $@ -linkall unix.cma str.cma dynlink.cma $(LINKFLAGS) $(OCAMLCMOFILES) $(EXECMOFILES)
+-$(OCAMLDOC_OPT): $(EXECMXFILES)
++ocamldoc.opt: $(EXECMXFILES)
+ 	$(OCAMLOPT) -o $@ -linkall unix.cmxa str.cmxa dynlink.cmxa $(LINKFLAGS) $(OCAMLCMXFILES) $(EXECMXFILES)
+ 
+ $(OCAMLDOC_LIBCMA): $(LIBCMOFILES)
+@@ -277,19 +275,19 @@ install: dummy
+ 	if test -d $(INSTALL_BINDIR); then : ; else $(MKDIR) $(INSTALL_BINDIR); fi
+ 	if test -d $(INSTALL_LIBDIR); then : ; else $(MKDIR) $(INSTALL_LIBDIR); fi
+ 	if test -d $(INSTALL_CUSTOMDIR); then : ; else $(MKDIR) $(INSTALL_CUSTOMDIR); fi
+-	$(CP) $(OCAMLDOC) $(INSTALL_BINDIR)/$(OCAMLDOC)$(EXE)
++	$(CP) ocamldoc $(INSTALL_BINDIR)/ocamldoc$(EXE)
+ 	$(CP) ocamldoc.hva *.cmi $(OCAMLDOC_LIBCMA) $(INSTALL_LIBDIR)
+ 	$(CP) $(INSTALL_MLIS) $(INSTALL_CMIS) $(INSTALL_LIBDIR)
+ 	if test -d $(INSTALL_MANODIR); then : ; else $(MKDIR) $(INSTALL_MANODIR); fi
+ 	if test -d stdlib_man; then $(CP) stdlib_man/* $(INSTALL_MANODIR); else : ; fi
+ 
+ installopt:
+-	if test -f $(OCAMLDOC_OPT) ; then $(MAKE) installopt_really ; fi
++	if test -f ocamldoc.opt ; then $(MAKE) installopt_really ; fi
+ 
+ installopt_really:
+ 	if test -d $(INSTALL_BINDIR); then : ; else $(MKDIR) $(INSTALL_BINDIR); fi
+ 	if test -d $(INSTALL_LIBDIR); then : ; else $(MKDIR) $(INSTALL_LIBDIR); fi
+-	$(CP) $(OCAMLDOC_OPT) $(INSTALL_BINDIR)/$(OCAMLDOC_OPT)$(EXE)
++	$(CP) ocamldoc.opt $(INSTALL_BINDIR)/ocamldoc.opt$(EXE)
+ 	$(CP) ocamldoc.hva $(OCAMLDOC_LIBA) $(OCAMLDOC_LIBCMXA) $(INSTALL_LIBDIR)
+ 	$(CP) $(INSTALL_MLIS) $(INSTALL_CMIS) $(INSTALL_LIBDIR)
+ 
+@@ -361,7 +359,7 @@ autotest_stdlib: dummy
+ 
+ clean:: dummy
+ 	@rm -f *~ \#*\#
+-	@rm -f $(OCAMLDOC) $(OCAMLDOC_OPT) *.cma *.cmxa *.cmo *.cmi *.cmx *.$(A) *.$(O)
++	@rm -f ocamldoc ocamldoc.opt *.cma *.cmxa *.cmo *.cmi *.cmx *.$(A) *.$(O)
+ 	@rm -f odoc_parser.output odoc_text_parser.output
+ 	@rm -f odoc_lexer.ml odoc_text_lexer.ml odoc_see_lexer.ml odoc_ocamlhtml.ml
+ 	@rm -f odoc_parser.ml odoc_parser.mli odoc_text_parser.ml odoc_text_parser.mli
+-- 
+1.8.1.4
+

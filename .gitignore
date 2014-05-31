@@ -1,5 +1,5 @@
 # Files mentioned in this file will be ignored by git
-*.swp
+*.sw[po]
 *.tar.gz
 *.tar.gz.asc
 *.tar.bz2
