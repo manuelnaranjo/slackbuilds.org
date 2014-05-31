@@ -53,10 +53,12 @@ case "${HOST_TRIPLET}" in
   *-*-mingw*)
     LDFLAGS_WIN="-lws2_32 -lintl"
     WITH_HARFBUZZ="--enable-harfbuzz"
+    LESS_DEPS=""
     ;;
   *)
     LDFLAGS_WIN=""
     WITH_HARFBUZZ="--disable-harfbuzz"
+    LESS_DEPS="--disable-fontconfig --disable-fribidi --disable-cserve --disable-audio --disable-avahi --disable-v4l2"
     ;;
 esac
 
@@ -82,6 +84,7 @@ LDFLAGS="${LDFLAGS_WIN} -L/${PREFIX}/lib${LIBDIRSUFFIX}" \
   --disable-gstreamer1 \
   --enable-lua-old \
   ${WITH_HARFBUZZ} \
+  ${LESS_DEPS} \
   --with-crypto=none \
   --with-glib=no \
   --without-x \
