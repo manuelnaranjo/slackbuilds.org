@@ -52,9 +52,11 @@ unset TERM
 case "${HOST_TRIPLET}" in
   *-*-mingw*)
     LDFLAGS_WIN="-lws2_32 -lintl"
+    WITH_HARFBUZZ="--enable-harfbuzz"
     ;;
   *)
     LDFLAGS_WIN=""
+    WITH_HARFBUZZ="--disable-harfbuzz"
     ;;
 esac
 
@@ -79,6 +81,7 @@ LDFLAGS="${LDFLAGS_WIN} -L/${PREFIX}/lib${LIBDIRSUFFIX}" \
   --disable-gstreamer \
   --disable-gstreamer1 \
   --enable-lua-old \
+  ${WITH_HARFBUZZ} \
   --with-crypto=none \
   --with-tests=none \
   --enable-i-really-know-what-i-am-doing-and-that-this-will-probably-break-things-and-i-will-fix-them-myself-and-send-patches-aaa \
