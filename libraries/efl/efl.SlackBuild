@@ -58,7 +58,7 @@ case "${HOST_TRIPLET}" in
   *)
     LDFLAGS_WIN=""
     WITH_HARFBUZZ="--disable-harfbuzz"
-    LESS_DEPS="--disable-fontconfig --disable-fribidi --disable-cserve --disable-audio --disable-avahi --disable-v4l2"
+    LESS_DEPS="--disable-fontconfig --disable-fribidi --disable-cserve --disable-audio --disable-avahi --disable-v4l2 --disable-doc"
     ;;
 esac
 
