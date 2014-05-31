@@ -87,6 +87,7 @@ LDFLAGS="${LDFLAGS_WIN} -L/${PREFIX}/lib${LIBDIRSUFFIX}" \
   --without-x \
   --with-x11=none \
   --with-tests=none \
+  --disable-libmount \
   --enable-i-really-know-what-i-am-doing-and-that-this-will-probably-break-things-and-i-will-fix-them-myself-and-send-patches-aaa \
   ${WITH_EDJE_CC} \
   --disable-static
