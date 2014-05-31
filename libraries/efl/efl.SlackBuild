@@ -83,6 +83,7 @@ LDFLAGS="${LDFLAGS_WIN} -L/${PREFIX}/lib${LIBDIRSUFFIX}" \
   --enable-lua-old \
   ${WITH_HARFBUZZ} \
   --with-crypto=none \
+  --with-glib=no \
   --without-x \
   --with-x11=none \
   --with-tests=none \
