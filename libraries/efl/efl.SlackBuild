@@ -28,7 +28,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG $OUTPUT
 cd $TMP
 rm -rf $PRGNAM-$VERSION
-tar xvf $CWD/$PRGNAM-$VERSION.tar.gz
+tar xvf $CWD/$PRGNAM-$VERSION.tar.xz
 cd $PRGNAM-$VERSION
 chown -R root:root .
 find . \
@@ -37,14 +37,14 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-# sed -i 's/#if ! \(_WIN32_WINNT >= _WIN32_WINNT_VISTA\)/#if ! (\1)/' src/lib/evil_inet.{c,h}
-sed -i 's/_WIN32_WINNT_VISTA/0x600/' src/lib/evil/evil_inet.{c,h}
-# sed -i 's/strtok_r/strtok_s/' src/lib/evas/filters/evas_filter_parser.c
-
 if [ x"${HOST_TRIPLET}" != x"${BUILD_TRIPLET}" ]; then
-  WITH_EDJE_CC="--with-edje-cc=edje_cc"
+  WITH_EDJE_CC="--with-edje-cc=${YYPREFIX_NATIVE}/bin/edje_cc"
+  WITH_EOLIAN_GEN="--with-eolian-gen=${YYPREFIX_NATIVE}/bin/eolian_gen"
+  WITH_EOLIAN_CXX="--with-eolian-cxx=${YYPREFIX_NATIVE}/bin/eolian_cxx"
 else
   WITH_EDJE_CC=""
+  WITH_EOLIAN_GEN=""
+  WITH_EOLIAN_CXX=""
 fi
 
 unset TERM
@@ -62,7 +62,6 @@ case "${HOST_TRIPLET}" in
     ;;
 esac
 
-patch -p1 -i $CWD/win32-fix-ecore_evas-engine-search-path.patch || exit 1
 sed -i "/eina_module_symbol_path_get/ s;/\.\./lib/;/../lib${LIBDIRSUFFIX}/;" \
   src/lib/ecore_evas/ecore_evas_module.c
 
@@ -91,8 +90,11 @@ LDFLAGS="${LDFLAGS_WIN} -L/${PREFIX}/lib${LIBDIRSUFFIX}" \
   --with-x11=none \
   --with-tests=none \
   --disable-libmount \
-  --enable-i-really-know-what-i-am-doing-and-that-this-will-probably-break-things-and-i-will-fix-them-myself-and-send-patches-aaa \
+  --enable-i-really-know-what-i-am-doing-and-that-this-will-probably-break-things-and-i-will-fix-them-myself-and-send-patches-aba \
+  --disable-c++11 \
   ${WITH_EDJE_CC} \
+  ${WITH_EOLIAN_GEN} \
+  ${WITH_EOLIAN_CXX} \
   --disable-static
 
 make -j4 || make
