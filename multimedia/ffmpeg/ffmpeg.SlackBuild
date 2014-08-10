@@ -26,36 +26,16 @@
 # Modified by Robby Workman <rworkman@slackbuilds.org>
 
 PRGNAM=ffmpeg
-VERSION=${VERSION:-2.1}
+VERSION=${VERSION:-2.2.3}
 BUILD=${BUILD:-1}
 TAG=${TAG:-_SBo}
-
-if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) ARCH=i486 ;;
-    arm*) ARCH=arm ;;
-       *) ARCH=$( uname -m ) ;;
-  esac
-fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp/SBo}
 PKG=$TMP/package-$PRGNAM
 OUTPUT=${OUTPUT:-/tmp}
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "i686" ]; then
-  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
-  LIBDIRSUFFIX="64"
-else
-  SLKCFLAGS="-O2"
-  LIBDIRSUFFIX=""
-fi
+SLKCFLAGS="-O2"
 
 # environment sanity checks
 TEXI2HTML=$(which texi2html 2>/dev/null)
@@ -97,13 +77,14 @@ ladspa="";      [ "${LADSPA:-no}" != "no" ]       && ladspa="--enable-ladspa"
 
 opencore_amr="" ; [ "${OPENCORE:-no}" != "no" ] && \
   opencore_amr="--enable-libopencore-amrnb --enable-libopencore-amrwb"
+fdk_aac=""      ; [ "${FDK_AAC:-no}" != "no" ]  && fdk_aac="--enable-libfdk-aac"
 libfaac=""      ; [ "${FAAC:-no}" != "no" ]     && \
   { libfaac="--enable-libfaac" ; non_free="--enable-nonfree" ; }
 ssl=""      ; [ "${OPENSSL:-no}" != "no" ]     && \
   { ssl="--enable-openssl" ; non_free="--enable-nonfree" ; }
 openjpeg=""     ; [ "${JP2:-no}" != "no" ]      && \
   { openjpeg="--enable-libopenjpeg" ; \
-    SLKCFLAGS="$SLKCFLAGS -I/usr/include/openjpeg-1.5" ; }
+    SLKCFLAGS="$SLKCFLAGS -I/${PREFIX}/include/openjpeg-1.5" ; }
 
 mp3lame="--enable-libmp3lame" ; [ "${LAME:-yes}" != "yes" ] && mp3lame=""
 libx264="--enable-libx264"    ; [ "${X264:-yes}" != "yes" ] && libx264=""
@@ -126,14 +107,18 @@ find -L . \
  \( -perm 666 -o -perm 664 -o -perm 640 -o -perm 600 -o -perm 444 \
  -o -perm 440 -o -perm 400 \) -exec chmod 644 {} \;
 
-CFLAGS="$SLKCFLAGS" \
-CXXFLAGS="$SLKCFLAGS" \
+
+sed -i '/^pkg_config_default="\${cross_prefix}\${pkg_config_default}"$/ s/.{cross_prefix}//' configure
+
+CFLAGS="-O2" \
+CXXFLAGS="-O2" \
+LDFLAGS="-L/${PREFIX}/lib${LIBDIRSUFFIX}" \
 ./configure \
-  --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --shlibdir=/usr/lib${LIBDIRSUFFIX} \
-  --docdir=/usr/doc/$PRGNAM-$VERSION/html \
-  --mandir=/usr/man \
+  --prefix=/${PREFIX} \
+  --libdir=/${PREFIX}/lib${LIBDIRSUFFIX} \
+  --shlibdir=/${PREFIX}/lib${LIBDIRSUFFIX} \
+  --docdir=/${PREFIX}/doc/$PRGNAM-$VERSION/html \
+  --mandir=/${PREFIX}/man \
   --disable-debug \
   --enable-shared \
   --disable-static \
@@ -144,14 +129,15 @@ CXXFLAGS="$SLKCFLAGS" \
   --enable-version3 \
   --enable-postproc \
   --enable-swscale \
-  --enable-x11grab \
   --enable-avfilter \
+  --cross-prefix=${HOST_TRIPLET}- \
+  --enable-cross-compile \
   --enable-gnutls \
-  --enable-libcdio \
-  --enable-libssh \
-  --arch=$ARCH \
+  --arch="$(echo ${HOST_TRIPLET} | cut -f1 -d-)" \
+  --target-os=mingw32 \
   $openjpeg \
   $libdc1394 \
+  $fdk_aac \
   $mp3lame \
   $libfaac \
   $libxvid \
@@ -176,23 +162,29 @@ CXXFLAGS="$SLKCFLAGS" \
   $ladspa \
   $ssl
 
-make
+#  --enable-libcdio \
+#  --enable-libssh \
+make -j7
 make install DESTDIR=$PKG
 make install-man DESTDIR=$PKG
 
-find $PKG -print0 | xargs -0 file | grep -e "executable" -e "shared object" | \
-  grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
+find $PKG | xargs file | egrep -e "executable|shared object" \
+  | grep ${HOST_EXE_FORMAT} | cut -f 1 -d : \
+  | xargs ${HOST_STRIP} --strip-unneeded 2> /dev/null || true
 
-find $PKG/usr/man -type f -exec gzip -9 {} \;
+find $PKG/${PREFIX}/man -type f -exec gzip -9 {} \;
 
-mkdir -p $PKG/usr/doc/$PRGNAM-$VERSION/txt
+mkdir -p $PKG/${PREFIX}/doc/$PRGNAM-$VERSION/txt
 cp -a Changelog COPYING* CREDITS INSTALL LICENSE MAINTAINERS README RELEASE \
-  VERSION doc/RELEASE_NOTES $PKG/usr/doc/$PRGNAM-$VERSION
-cp -a doc/*.txt $PKG/usr/doc/$PRGNAM-$VERSION/txt/
-cat $CWD/$PRGNAM.SlackBuild > $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
+  VERSION doc/RELEASE_NOTES $PKG/${PREFIX}/doc/$PRGNAM-$VERSION
+cp -a doc/*.txt $PKG/${PREFIX}/doc/$PRGNAM-$VERSION/txt/
+cat $CWD/$PRGNAM.SlackBuild > $PKG/${PREFIX}/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
 
-mkdir -p $PKG/install
-cat $CWD/slack-desc > $PKG/install/slack-desc
-
-cd $PKG
-/sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$PKGARCH-$BUILD$TAG.${PKGTYPE:-tgz}
+cat ${CWD}/${PRGNAM}.yypkg.script | sed \
+  -e "s/%{PKG}/${PRGNAM}/" \
+  -e "s/%{HST}/${HOST_TRIPLET}/" \
+  -e "s/%{TGT}//" \
+  -e "s/%{VER}/${VERSION}/" \
+  -e "s/%{BUILD}/${BUILD}/" \
+  -e "s/%{DESCR}/${DESCR:-"No description"}/" \
+  | yypkg --makepkg --output ${YYOUTPUT} --script - --directory "${PKG}/${PREFIX}"

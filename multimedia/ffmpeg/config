@@ -1,0 +1,4 @@
+export X264="yes"
+export SPEEX="yes"
+export OPUS="yes"
+export OPENCORE="no"
