@@ -33,9 +33,9 @@ cd $PRGNAM-$VERSION
 chown -R root:root .
 find . \
  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
- -exec chmod 755 {} \; -o \
+ -exec chmod 755 {} + -o \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
- -exec chmod 644 {} \;
+ -exec chmod 644 {} +
 
 # Default to the software_gdi engine
 sed -i '/_elm_config->engine = eina_stringshare_add("software_x11");/ s/x11/gdi/' src/lib/elm_config.c
@@ -58,18 +58,29 @@ else
   WITH_EOLIAN_CXX=""
 fi
 
-sed -i '/module_la_LIBADD/ s/$/ @EVIL_LIBS@/' \
-  src/modules/access_output/Makefile.am \
-  src/modules/datetime_input_ctxpopup/Makefile.am
+# sed -i '/module_la_LIBADD/ s/$/ @EVIL_LIBS@/' \
+#   src/modules/access_output/Makefile.am \
+#   src/modules/datetime_input_ctxpopup/Makefile.am
+# 
+# sed -i '/module_la_LIBADD/ s/$/ @LTLIBINTL@/' \
+#   src/modules/datetime_input_ctxpopup/Makefile.am
+# 
 
-sed -i '/module_la_LIBADD/ s/$/ @LTLIBINTL@/' \
-  src/modules/datetime_input_ctxpopup/Makefile.am
+find . \( -name "*.h" -o -name "*.h.in" \) -exec sed -i '/dllimport/ s/.*/\#define EAPI /' {} +
+
+case "${HOST_TRIPLET}" in
+  *-*-mingw*) LDFLAGS_WIN="-lpsapi -lole32 -lws2_32" ;;
+  *)          LDFLAGS_WIN="" ;;
+esac
+
+sleep 30
 
 autoreconf -fiv
 
 CFLAGS="-O2" \
 CXXFLAGS="-O2" \
-LDFLAGS="-L/${PREFIX}/lib${LIBDIRSUFFIX}" \
+LDFLAGS="-L/${PREFIX}/lib${LIBDIRSUFFIXl}" \
+LIBS="-lfreetype -llua -lz -ldl -levil ${LDFLAGS_WIN} " \
 ./configure \
   --prefix=/${PREFIX} \
   --libdir=/${PREFIX}/lib${LIBDIRSUFFIX} \
@@ -86,9 +97,9 @@ LDFLAGS="-L/${PREFIX}/lib${LIBDIRSUFFIX}" \
   ${WITH_EOLIAN_CXX} \
   ${WITH_ELEMENTARY_CODEGEN} \
   ${WITH_ELM_PREFS_CC} \
-  --disable-static
+  ${DISABLE_STATIC}
 
-make -j4 || make
+make -j4 V=1 || make V=1
 make install DESTDIR=$PKG
 
 find $PKG | xargs file | egrep -e "executable|shared object" \

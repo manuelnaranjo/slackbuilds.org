@@ -1,0 +1,24 @@
+export WITH_FRIBIDI="--disable-fribidi"
+export WITH_HARFBUZZ="--disable-harfbuzz"
+export WITH_FONTCONFIG="--disable-fontconfig"
+export WITH_CSERVE="--disable-cserve"
+export WITH_AUDIO="--disable-audio"
+export WITH_AVAHI="--disable-avahi"
+export WITH_VAL2="--disable-v4l2"
+export WITH_DOC="--disable-doc"
+export WITH_IMAGE_LOADERS="\
+  --disable-image-loader-tiff \
+  --disable-image-loader-dds \
+  --disable-image-loader-tgv \
+  --disable-image-loader-xpm \
+  --disable-image-loader-wbmp \
+  --disable-image-loader-tga \
+  --disable-image-loader-pmaps \
+  --disable-image-loader-psd \
+  --disable-image-loader-gif \
+  --disable-image-loader-png \
+  --disable-image-loader-jpeg \
+  --disable-image-loader-bmp \
+  --disable-image-loader-ico \
+"
+export DISABLE_STATIC="--disable-static"
