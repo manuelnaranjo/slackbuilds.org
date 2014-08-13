@@ -18,11 +18,10 @@ CORE_O=	lapi.o lcode.o ldebug.o ldo.o ldump.o lfunc.o lgc.o llex.o lmem.o \
 LIB_O= lauxlib.o lbaselib.o ldblib.o liolib.o lmathlib.o loslib.o ltablib.o \
 			 lstrlib.o loadlib.o linit.o
 
-all: liblua-51.dll liblua.dll.a lua.exe
+all: liblua-51.dll liblua.dll.a liblua.a lua.exe
 
 .c.o:
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
-
 
 lua.exe: lua.o liblua.dll.a
 	$(CC) -o $@ lua.o liblua.dll.a $(LDFLAGS)
@@ -33,18 +32,32 @@ luac.exe: luac.o liblua.dll.a
 liblua-51.dll liblua.dll.a: $(CORE_O) $(LIB_O)
 	$(CC) -shared -o liblua-51.dll -Wl,--out-implib=liblua.dll.a $(CORE_O) $(LIB_O)
 
+liblua.a: $(CORE_O) $(LIB_O)
+	$(AR) $(AR_FLAGS) liblua.a $(CORE_O) $(LIB_O)
+
 .PHONY: install clean
 
-install: liblua.dll.a liblua-51.dll lua.exe
-	mkdir -p $(BIN_DIR) $(INCLUDE_DIR) $(LIB_DIR)
-	install -p liblua-51.dll $(BIN_DIR)
+install-headers:
+	mkdir -p $(INCLUDE_DIR)
 	for header in lua.h luaconf.h lualib.h lauxlib.h; do \
 		install -p $${header} $(INCLUDE_DIR); \
 	done
+
+install-exe: lua.exe
+	mkdir -p $(BIN_DIR)
+	install -p lua.exe $(BIN_DIR)
+
+install-shared: install-exe install-headers liblua.dll.a liblua-51.dll
+	mkdir -p $(LIB_DIR)
+	install -p liblua-51.dll $(BIN_DIR)
 	install -p liblua.dll.a $(LIB_DIR)
+	
+install-static: install-exe install-headers liblua.a
+	mkdir -p $(LIB_DIR)
+	install -p liblua.a $(LIB_DIR)
 
 clean:
-	-rm -f liblua.a liblua-51.dll liblua.dll.a
+	-rm -f liblua.a liblua-51.dll liblua.dll.a lua.exe
 	-rm -f *.o
 
 

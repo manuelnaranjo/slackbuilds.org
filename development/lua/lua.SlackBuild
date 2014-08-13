@@ -81,7 +81,7 @@ else
     BIN_DIR="${PKG}/${PREFIX}/bin" \
     INCLUDE_DIR="${PKG}/${PREFIX}/include" \
     LIB_DIR="${PKG}/${PREFIX}/lib${LIBDIRSUFFIX}" \
-    install
+    ${INSTALL_TARGET}
 fi
 
 PC_DIR="$PKG/${PREFIX}/lib${LIBDIRSUFFIX}/pkgconfig"
