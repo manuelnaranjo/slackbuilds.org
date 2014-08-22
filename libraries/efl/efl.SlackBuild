@@ -9,14 +9,6 @@ VERSION=${VERSION:-1.9.2}
 BUILD=${BUILD:-2}
 TAG=${TAG:-_SBo}
 
-if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) ARCH=i486 ;;
-    arm*) ARCH=arm ;;
-       *) ARCH=$( uname -m ) ;;
-  esac
-fi
-
 CWD=$(pwd)
 TMP=${TMP:-/tmp/SBo}
 PKG=$TMP/package-$PRGNAM
@@ -89,7 +81,7 @@ LDFLAGS="${LDFLAGS_WIN} -L/${PREFIX}/lib${LIBDIRSUFFIX}" \
   --localstatedir=/${PREFIX}/var \
   --mandir=/${PREFIX}/man \
   --docdir=/${PREFIX}/doc/$PRGNAM-$VERSION \
-  --build=$ARCH-slackware-linux \
+  --build=${BUILD_TRIPLET} \
   --host=${HOST_TRIPLET} \
   --disable-pulseaudio \
   --disable-physics \
