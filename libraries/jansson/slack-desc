@@ -6,7 +6,7 @@
 # customary to leave one space after the ':' except on otherwise blank lines.
 
        |-----handy-ruler------------------------------------------------------|
-jansson: jansson (C library)
+jansson: jansson (C library for JSON)
 jansson:
 jansson: Jansson is a C library for encoding, decoding and manipulating JSON
 jansson: data.
