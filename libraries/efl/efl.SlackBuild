@@ -106,7 +106,7 @@ LDFLAGS="${LDFLAGS_WIN} -L/${PREFIX}/lib${LIBDIRSUFFIX}" \
   --with-tests=none \
   --disable-libmount \
   --enable-i-really-know-what-i-am-doing-and-that-this-will-probably-break-things-and-i-will-fix-them-myself-and-send-patches-aba \
-  --disable-c++11 \
+  --disable-cxx-bindings \
   ${WITH_EDJE_CC} \
   ${WITH_EOLIAN_GEN} \
   ${WITH_EOLIAN_CXX} \
