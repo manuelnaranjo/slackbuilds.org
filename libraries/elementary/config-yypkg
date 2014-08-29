@@ -1,1 +1,2 @@
 export DISTABLE_STATIC="--enable-static --disable-shared"
+export DO_STATIC="yes"

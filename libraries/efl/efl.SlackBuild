@@ -48,26 +48,28 @@ esac
 
 sed -i '/bin_PROGRAMS += / d' src/Makefile_Evil.am
 
-sed -i \
-  -e '/want_cares="yes"/ s/yes/no/' \
-  -e '/want_ecore_con_local_sockets="yes"/ s/yes/no/' \
-  configure.ac
+if [ "${DO_STATIC:-no}" = "yes" ] && echo "${HOST_TRIPLET}" | grep "mingw"; then
+  sed -i \
+    -e '/want_cares="yes"/ s/yes/no/' \
+    -e '/want_ecore_con_local_sockets="yes"/ s/yes/no/' \
+    configure.ac
 
-sed -i \
-  -e '/#include <sys\/socket.h>/ d' \
-  -e '/#include <netinet\/in.h>/ d' \
-  -e '/#include <arpa\/inet.h>/ d' \
-  -e '/#include <arpa\/nameser.h>/ d' \
-  -e 's/fork()/-1/' \
-  src/lib/ecore_con/ecore_con_info.c
+  sed -i \
+    -e '/#include <sys\/socket.h>/ d' \
+    -e '/#include <netinet\/in.h>/ d' \
+    -e '/#include <arpa\/inet.h>/ d' \
+    -e '/#include <arpa\/nameser.h>/ d' \
+    -e 's/fork()/-1/' \
+    src/lib/ecore_con/ecore_con_info.c
 
-sed -i "/eina_module_symbol_path_get/ s;/\.\./lib/;/../lib${LIBDIRSUFFIX}/;" \
-  src/lib/ecore_evas/ecore_evas_module.c
+  sed -i "/eina_module_symbol_path_get/ s;/\.\./lib/;/../lib${LIBDIRSUFFIX}/;" \
+    src/lib/ecore_evas/ecore_evas_module.c
 
-sed -i 's/\<dbus_shutdown\>/efreetd_&/' \
-  src/bin/efreet/efreetd{.c,_dbus.c,_dbus.h}
+  sed -i 's/\<dbus_shutdown\>/efreetd_&/' \
+    src/bin/efreet/efreetd{.c,_dbus.c,_dbus.h}
 
-find . -name "*.h" -exec sed -i '/dllimport/ s/.*/\#define EAPI /' {} +
+  find . -name "*.h" -exec sed -i '/dllimport/ s/.*/\#define EAPI /' {} +
+fi
 
 autoreconf -fiv
 

@@ -66,21 +66,21 @@ fi
 #   src/modules/datetime_input_ctxpopup/Makefile.am
 # 
 
-find . \( -name "*.h" -o -name "*.h.in" \) -exec sed -i '/dllimport/ s/.*/\#define EAPI /' {} +
+if [ "${DO_STATIC:-no}" = "yes" ]; then
+  find . \( -name "*.h" -o -name "*.h.in" \) -exec sed -i '/dllimport/ s/.*/\#define EAPI /' {} +
+fi
 
 case "${HOST_TRIPLET}" in
   *-*-mingw*) LDFLAGS_WIN="-lpsapi -lole32 -lws2_32" ;;
   *)          LDFLAGS_WIN="" ;;
 esac
 
-sleep 30
-
 autoreconf -fiv
 
 CFLAGS="-O2" \
 CXXFLAGS="-O2" \
 LDFLAGS="-L/${PREFIX}/lib${LIBDIRSUFFIXl}" \
-LIBS="-lfreetype -llua -lz -ldl -levil ${LDFLAGS_WIN} " \
+LIBS="-levil ${LIBS_WIN} " \
 ./configure \
   --prefix=/${PREFIX} \
   --libdir=/${PREFIX}/lib${LIBDIRSUFFIX} \

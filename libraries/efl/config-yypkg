@@ -22,3 +22,4 @@ export WITH_IMAGE_LOADERS="\
   --disable-image-loader-ico \
 "
 export DISABLE_STATIC="--enable-static --disable-shared"
+export DO_STATIC="yes"
