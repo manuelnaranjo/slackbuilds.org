@@ -67,6 +67,7 @@ make install prefix=$PKG
 
 sed \
   -e 's;${PREFIX};'"${PREFIX}"';g' \
+  -e 's;${YYPREFIX_CROSS};'"${YYPREFIX_CROSS}"';g' \
   -e 's;${LIBDIRSUFFIX_TGT};'"${LIBDIRSUFFIX_TGT}"';g' \
   ${CWD}/findlib.conf.in \
   > ${PKG}/${PREFIX}/etc/findlib.conf

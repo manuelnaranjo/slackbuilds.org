@@ -1,6 +1,6 @@
 destdir="/${PREFIX}/lib${LIBDIRSUFFIX_TGT}/ocaml/site-lib"
 path="/${PREFIX}/lib${LIBDIRSUFFIX_TGT}/ocaml/site-lib"
-stdlib="/${PREFIX}/lib${LIBDIRSUFFIX_TGT}/ocaml"
+stdlib="${YYPREFIX_CROSS}/lib${LIBDIRSUFFIX_TGT}/ocaml"
 ldconf="/${PREFIX}/lib${LIBDIRSUFFIX_TGT}/ocaml/ld.conf"
 ocamlc="ocamlc.opt.exe"
 ocamlopt="ocamlopt.opt.exe"
