@@ -73,12 +73,12 @@ sed \
 
 mkdir -p $PKG/${PREFIX}/lib$LIBDIRSUFFIX_TGT/ocaml/site-lib/stublibs
 
-# If ld.conf doesn't exist, create it along with the corresponding directories.
-# It is usually provided by the OCaml compiler itself but there is none for the
-# windows series and findlib wants one.
-LD_CONF="/${PREFIX}/lib${LIBDIRSUFFIX}/ocaml/ld.conf"
-if [ ! -e "${LD_CONF}" ]; then
-  cat > "${PKG}${LD_CONF}" << EOF
+# Create ld.conf along with the corresponding directories if we're
+# cross-compiling findlib.
+# This file is usually provided by the OCaml compiler itself but there is none
+# for the windows series and findlib wants one.
+if [ x"${HOST_TRIPLET}" != x"${BUILD_TRIPLET}" ]; then
+  cat > "${PKG}/${PREFIX}/lib${LIBDIRSUFFIX}/ocaml/ld.conf" << EOF
 /${PREFIX}/lib${LIBDIRSUFFIX}/ocaml/stublibs
 /${PREFIX}/lib${LIBDIRSUFFIX}/ocaml
 EOF
