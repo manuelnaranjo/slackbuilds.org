@@ -1,0 +1,63 @@
+From 0e33a722a814f7e5f46f525ca57169d325aa737b Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Wed, 26 Dec 2012 22:15:22 +0100
+Subject: [PATCH 27/34] windows makefiles: remove unused DO variable.
+
+---
+ config/Makefile.mingw   | 1 -
+ config/Makefile.mingw64 | 1 -
+ config/Makefile.msvc    | 1 -
+ config/Makefile.msvc64  | 1 -
+ 4 files changed, 4 deletions(-)
+
+diff --git a/config/Makefile.mingw b/config/Makefile.mingw
+index 0a5a0b1..94be7da 100644
+--- a/config/Makefile.mingw
++++ b/config/Makefile.mingw
+@@ -47,7 +47,6 @@ O=o
+ A=a
+ S=s
+ SO=s.o
+-DO=d.o
+ EXE=.exe
+ EXT_DLL=.dll
+ EXT_OBJ=.$(O)
+diff --git a/config/Makefile.mingw64 b/config/Makefile.mingw64
+index d941aaa..44a31b9 100644
+--- a/config/Makefile.mingw64
++++ b/config/Makefile.mingw64
+@@ -47,7 +47,6 @@ O=o
+ A=a
+ S=s
+ SO=s.o
+-DO=d.o
+ EXE=.exe
+ EXT_DLL=.dll
+ EXT_OBJ=.$(O)
+diff --git a/config/Makefile.msvc b/config/Makefile.msvc
+index cd72c06..290047a 100644
+--- a/config/Makefile.msvc
++++ b/config/Makefile.msvc
+@@ -40,7 +40,6 @@ O=obj
+ A=lib
+ S=asm
+ SO=s.obj
+-DO=d.obj
+ EXE=.exe
+ EXT_DLL=.dll
+ EXT_OBJ=.$(O)
+diff --git a/config/Makefile.msvc64 b/config/Makefile.msvc64
+index 4b1b0c9..2d1010a 100644
+--- a/config/Makefile.msvc64
++++ b/config/Makefile.msvc64
+@@ -40,7 +40,6 @@ O=obj
+ A=lib
+ S=asm
+ SO=s.obj
+-DO=d.obj
+ DBGO=dbg.obj
+ EXE=.exe
+ EXT_DLL=.dll
+-- 
+1.8.1.4
+

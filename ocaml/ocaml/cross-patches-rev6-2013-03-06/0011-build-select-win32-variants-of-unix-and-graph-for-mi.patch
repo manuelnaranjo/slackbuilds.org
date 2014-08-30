@@ -1,0 +1,203 @@
+From 44ee9bb56862755babda38f6c745cc6a0c18267a Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Sun, 6 Jan 2013 13:00:10 +0100
+Subject: [PATCH 11/34] build: select win32 variants of unix and graph for
+ mingw.
+
+---
+ asmrun/Makefile             | 12 ++++++------
+ byterun/Makefile            |  4 ++++
+ configure                   | 11 ++++++++++-
+ myocamlbuild.ml             |  7 ++++---
+ ocamlbuild/Makefile.noboot  |  2 +-
+ ocamldoc/Makefile           | 14 +++++++-------
+ otherlibs/bigarray/Makefile |  7 ++++---
+ 7 files changed, 36 insertions(+), 21 deletions(-)
+
+diff --git a/asmrun/Makefile b/asmrun/Makefile
+index 425be06..8b43f37 100644
+--- a/asmrun/Makefile
++++ b/asmrun/Makefile
+@@ -24,8 +24,8 @@ COBJS=startup.o main.o fail.o roots.o globroots.o signals.o signals_asm.o \
+   misc.o freelist.o major_gc.o minor_gc.o memory.o alloc.o compare.o ints.o \
+   floats.o str.o array.o io.o extern.o intern.o hash.o sys.o parsing.o \
+   gc_ctrl.o terminfo.o md5.o obj.o lexing.o printexc.o callback.o weak.o \
+-  compact.o finalise.o custom.o unix.o backtrace.o natdynlink.o debugger.o \
+-  meta.o dynlink.o
++  compact.o finalise.o custom.o $(UNIX_OR_WIN32).o backtrace.o natdynlink.o\
++ 	debugger.o meta.o dynlink.o
+ 
+ ASMOBJS=$(ARCH).o
+ 
+@@ -149,8 +149,8 @@ meta.c: ../byterun/meta.c
+ 	ln -s ../byterun/meta.c meta.c
+ globroots.c: ../byterun/globroots.c
+ 	ln -s ../byterun/globroots.c globroots.c
+-unix.c: ../byterun/unix.c
+-	ln -s ../byterun/unix.c unix.c
++$(UNIX_OR_WIN32).c: ../byterun/$(UNIX_OR_WIN32).c
++	ln -s ../byterun/$(UNIX_OR_WIN32).c $(UNIX_OR_WIN32).c
+ dynlink.c: ../byterun/dynlink.c
+ 	ln -s ../byterun/dynlink.c dynlink.c
+ signals.c: ../byterun/signals.c
+@@ -161,8 +161,8 @@ debugger.c: ../byterun/debugger.c
+ LINKEDFILES=misc.c freelist.c major_gc.c minor_gc.c memory.c alloc.c array.c \
+   compare.c ints.c floats.c str.c io.c extern.c intern.c hash.c sys.c \
+   parsing.c gc_ctrl.c terminfo.c md5.c obj.c lexing.c printexc.c callback.c \
+-  weak.c compact.c finalise.c meta.c custom.c main.c globroots.c unix.c \
+-  dynlink.c signals.c debugger.c
++  weak.c compact.c finalise.c meta.c custom.c main.c globroots.c \
++	$(UNIX_OR_WIN32).c dynlink.c signals.c debugger.c
+ 
+ clean::
+ 	rm -f $(LINKEDFILES)
+diff --git a/byterun/Makefile b/byterun/Makefile
+index c047013..9ac7569 100644
+--- a/byterun/Makefile
++++ b/byterun/Makefile
+@@ -16,7 +16,11 @@ include Makefile.common
+ CFLAGS=-DCAML_NAME_SPACE -O $(BYTECCCOMPOPTS) $(IFLEXDIR)
+ DFLAGS=-DCAML_NAME_SPACE -g -DDEBUG $(BYTECCCOMPOPTS) $(IFLEXDIR)
+ 
++ifeq ($(SYSTEM),mingw)
++OBJS=$(COMMONOBJS) win32.o main.o
++else
+ OBJS=$(COMMONOBJS) unix.o main.o
++endif
+ DOBJS=$(OBJS:.o=.d.o) instrtrace.d.o
+ PICOBJS=$(OBJS:.o=.pic.o)
+ 
+diff --git a/configure b/configure
+index 6841a53..9b69fb5 100755
+--- a/configure
++++ b/configure
+@@ -1000,7 +1000,16 @@ fi
+ 
+ # Configuration for the libraries
+ 
+-otherlibraries="unix str num dynlink bigarray"
++case "$system" in
++  mingw) unix_or_win32="win32"; unixlib="win32unix"; graphlib="win32graph";;
++  *) unix_or_win32="unix"; unixlib="unix"; graphlib="graph";;
++esac
++
++echo "UNIX_OR_WIN32=$unix_or_win32" >> Makefile
++echo "UNIXLIB=$unixlib" >> Makefile
++echo "GRAPHLIB=$graphlib" >> Makefile
++
++otherlibraries="$unixlib str num dynlink bigarray"
+ 
+ # For the Unix library
+ 
+diff --git a/myocamlbuild.ml b/myocamlbuild.ml
+index 90ca8d7..285b4d4 100644
+--- a/myocamlbuild.ml
++++ b/myocamlbuild.ml
+@@ -105,9 +105,10 @@ let if_mixed_dir dir =
+   if mixed then ".."/dir else dir;;
+ 
+ let unix_dir =
+-  match Sys.os_type with
+-  | "Win32" -> if_mixed_dir "otherlibs/win32unix"
+-  | _       -> if_mixed_dir "otherlibs/unix";;
++  if Sys.os_type = "Win32" || C.system = "mingw" then
++    if_mixed_dir "otherlibs/win32unix"
++  else
++    if_mixed_dir "otherlibs/unix";;
+ 
+ let threads_dir    = if_mixed_dir "otherlibs/threads";;
+ let systhreads_dir = if_mixed_dir "otherlibs/systhreads";;
+diff --git a/ocamlbuild/Makefile.noboot b/ocamlbuild/Makefile.noboot
+index 02f7c73..0679e0c 100644
+--- a/ocamlbuild/Makefile.noboot
++++ b/ocamlbuild/Makefile.noboot
+@@ -51,7 +51,7 @@ INCLUDES_DEP=
+ INCLUDES_NODEP=	-I $(OCAMLSRCDIR)/stdlib \
+ 	-I $(OCAMLSRCDIR)/otherlibs/str \
+ 	-I $(OCAMLSRCDIR)/otherlibs/dynlink \
+-	-I $(OCAMLSRCDIR)/otherlibs/unix
++	-I $(OCAMLSRCDIR)/otherlibs/$(UNIXLIB)
+ 
+ INCLUDES=$(INCLUDES_DEP) $(INCLUDES_NODEP)
+ 
+diff --git a/ocamldoc/Makefile b/ocamldoc/Makefile
+index 144b95d..59295a9 100644
+--- a/ocamldoc/Makefile
++++ b/ocamldoc/Makefile
+@@ -68,9 +68,9 @@ INCLUDES_DEP=-I $(OCAMLSRCDIR)/parsing \
+ INCLUDES_NODEP=	-I $(OCAMLSRCDIR)/stdlib \
+ 	-I $(OCAMLSRCDIR)/otherlibs/str \
+ 	-I $(OCAMLSRCDIR)/otherlibs/dynlink \
+-	-I $(OCAMLSRCDIR)/otherlibs/unix \
++	-I $(OCAMLSRCDIR)/otherlibs/$(UNIXLIB) \
+ 	-I $(OCAMLSRCDIR)/otherlibs/num \
+-	-I $(OCAMLSRCDIR)/otherlibs/graph
++	-I $(OCAMLSRCDIR)/otherlibs/$(GRAPHLIB)
+ 
+ INCLUDES=$(INCLUDES_DEP) $(INCLUDES_NODEP)
+ 
+@@ -193,7 +193,7 @@ OCAMLCMOFILES=$(OCAMLSRCDIR)/parsing/printast.cmo \
+ OCAMLCMXFILES=$(OCAMLCMOFILES:.cmo=.cmx)
+ 
+ STDLIB_MLIS=../stdlib/*.mli \
+-	../otherlibs/unix/unix.mli \
++	../otherlibs/$(UNIXLIB)/unix.mli \
+ 	../otherlibs/str/str.mli \
+ 	../otherlibs/bigarray/bigarray.mli \
+ 	../otherlibs/num/num.mli
+@@ -307,14 +307,14 @@ test_stdlib: dummy
+ 	$(MKDIR) $@
+ 	$(OCAMLDOC_RUN) -html -colorize-code -sort -d $@ $(INCLUDES) -dump $@/stdlib.odoc -keep-code \
+ 	../stdlib/pervasives.ml ../stdlib/*.mli \
+-	../otherlibs/unix/unix.mli \
++	../otherlibs/$(UNIXLIB)/unix.mli \
+ 	../otherlibs/str/str.mli
+ 
+ test_stdlib_code: dummy
+ 	$(MKDIR) $@
+ 	$(OCAMLDOC_RUN) -html -colorize-code -sort -d $@ $(INCLUDES) -dump $@/stdlib.odoc -keep-code \
+ 	`ls ../stdlib/*.ml | grep -v Labels` \
+-	../otherlibs/unix/unix.ml \
++	../otherlibs/$(UNIXLIB)/unix.ml \
+ 	../otherlibs/str/str.ml
+ 
+ test_framed: dummy
+@@ -331,7 +331,7 @@ test_latex_simple: dummy
+ 	-latextitle 6,subsection -latextitle 7,subsubection \
+ 	../stdlib/hashtbl.mli \
+ 	../stdlib/arg.mli \
+-	../otherlibs/unix/unix.mli \
++	../otherlibs/$(UNIXLIB)/unix.mli \
+ 	../stdlib/map.mli
+ 
+ test_man: dummy
+@@ -353,7 +353,7 @@ autotest_stdlib: dummy
+ 	$(OCAMLDOC_RUN) -g autotest/odoc_test.cmo\
+ 	$(INCLUDES) -keep-code \
+ 	../stdlib/pervasives.ml ../stdlib/*.mli \
+-	../otherlibs/unix/unix.mli \
++	../otherlibs/$(UNIXLIB)/unix.mli \
+ 	../otherlibs/str/str.mli
+ 
+ # backup, clean and depend :
+diff --git a/otherlibs/bigarray/Makefile b/otherlibs/bigarray/Makefile
+index 84ca80a..7d9287c 100644
+--- a/otherlibs/bigarray/Makefile
++++ b/otherlibs/bigarray/Makefile
+@@ -12,9 +12,10 @@
+ #########################################################################
+ 
+ LIBNAME=bigarray
+-EXTRACFLAGS=-I../unix -DIN_OCAML_BIGARRAY -DCAML_NAME_SPACE
+-EXTRACAMLFLAGS=-I ../unix
+-COBJS=bigarray_stubs.$(O) mmap_unix.$(O)
++EXTRACFLAGS=-I../$(UNIXLIB) -DIN_OCAML_BIGARRAY -DCAML_NAME_SPACE
++EXTRACAMLFLAGS=-I ../$(UNIXLIB)
++mmap_impl=mmap_$(UNIX_OR_WIN32)
++COBJS=bigarray_stubs.$(O) $(mmap_impl).$(O)
+ CAMLOBJS=bigarray.cmo
+ HEADERS=bigarray.h
+ 
+-- 
+1.8.1.4
+

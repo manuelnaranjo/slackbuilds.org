@@ -1,0 +1,252 @@
+From 7038fdca105399004a7355a2ae6eb63208b45627 Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Sun, 13 Jan 2013 15:11:41 +0100
+Subject: [PATCH 13/34] build: make building ocamldoc, ocamlbuild and
+ ocamldebug optional.
+
+---
+ Makefile                | 42 ++++++++++++++++++++++++------------------
+ config/Makefile.mingw   |  2 +-
+ config/Makefile.mingw64 |  2 +-
+ config/Makefile.msvc    |  2 +-
+ config/Makefile.msvc64  |  2 +-
+ configure               | 34 ++++++++++++++++++++++++++--------
+ 6 files changed, 54 insertions(+), 30 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index aa7338b..bd8014c 100644
+--- a/Makefile
++++ b/Makefile
+@@ -32,6 +32,11 @@ MKDIR=mkdir -p
+ CAMLP4OUT=$(CAMLP4:=out)
+ CAMLP4OPT=$(CAMLP4:=opt)
+ 
++OCAMLBUILDBYTE=$(OCAMLBUILD:=.byte)
++OCAMLBUILDNATIVE=$(OCAMLBUILD:=.native)
++
++WITH_OCAMLDOC_OPT=$(WITH_OCAMLDOC:=.opt)
++
+ INCLUDES=-I utils -I parsing -I typing -I bytecomp -I asmcomp -I driver \
+ 	 -I toplevel
+ 
+@@ -116,7 +121,7 @@ defaultentry:
+ 
+ # Recompile the system using the bootstrap compiler
+ all: runtime ocamlc ocamllex ocamlyacc ocamltools library ocaml \
+-  otherlibraries ocamlbuild.byte $(CAMLP4OUT) $(DEBUGGER) ocamldoc
++  otherlibraries $(OCAMLBUILDBYTE) $(CAMLP4OUT) $(WITH_DEBUGGER) $(WITH_OCAMLDOC)
+ 
+ # Compile everything the first time
+ world:
+@@ -246,18 +251,18 @@ opt:
+ 	$(MAKE) libraryopt
+ 	$(MAKE) otherlibrariesopt
+ 	$(MAKE) ocamltoolsopt
+-	$(MAKE) ocamlbuildlib.native
++	# $(MAKE) ocamlbuildlib.native
+ 
+ # Native-code versions of the tools
+ opt.opt: checkstack runtime core ocaml opt-core ocamlc.opt otherlibraries \
+-	 $(DEBUGGER) ocamldoc ocamlbuild.byte $(CAMLP4OUT) \
++	 $(WITH_DEBUGGER) $(WITH_OCAMLDOC) $(OCAMLBUILDBYTE) $(CAMLP4OUT) \
+ 	 ocamlopt.opt otherlibrariesopt ocamllex.opt \
+-	 ocamltoolsopt ocamltoolsopt.opt ocamldoc.opt ocamlbuild.native \
++	 ocamltoolsopt ocamltoolsopt.opt $(WITH_OCAMLDOC_OPT) $(OCAMLBUILDNATIVE) \
+ 	 $(CAMLP4OPT)
+ 
+ base.opt: checkstack runtime core ocaml opt-core ocamlc.opt otherlibraries \
+-	 ocamlbuild.byte $(CAMLP4OUT) $(DEBUGGER) ocamldoc ocamlopt.opt \
+-	 otherlibrariesopt
++	 $(OCAMLBUILDBYTE) $(CAMLP4OUT) $(WITH_DEBUGGER) $(WITH_OCAMLDOC) \
++	 ocamlopt.opt otherlibrariesopt
+ 
+ # Installation
+ 
+@@ -289,7 +294,7 @@ install:
+ 	for i in $(OTHERLIBRARIES); do \
+ 	  (cd otherlibs/$$i; $(MAKE) install) || exit $$?; \
+ 	done
+-	cd ocamldoc; $(MAKE) install
++	if test -f ocamldoc/ocamldoc; then (cd ocamldoc; $(MAKE) install); else :; fi
+ 	if test -f ocamlopt; then $(MAKE) installopt; else :; fi
+ 	if test -f debugger/ocamldebug; then (cd debugger; $(MAKE) install); \
+ 	   else :; fi
+@@ -304,7 +309,8 @@ installopt:
+ 	cd stdlib; $(MAKE) installopt
+ 	cp asmcomp/*.cmi $(COMPLIBDIR)
+ 	cp compilerlibs/ocamloptcomp.cma $(OPTSTART) $(COMPLIBDIR)
+-	cd ocamldoc; $(MAKE) installopt
++	if test -f ocamldoc/ocamldoc.opt; then (cd ocamldoc; $(MAKE) install); \
++	   else :; fi
+ 	for i in $(OTHERLIBRARIES); \
+ 	  do (cd otherlibs/$$i; $(MAKE) installopt) || exit $$?; done
+ 	if test -f ocamlopt.opt ; then $(MAKE) installoptopt; fi
+@@ -723,22 +729,22 @@ alldepend::
+ 
+ # Camlp4
+ 
+-camlp4out: ocamlc ocamlbuild.byte
++camlp4out: ocamlc $(OCAMLBUILDBYTE)
+ 	./build/camlp4-byte-only.sh
+ 
+-camlp4opt: ocamlopt otherlibrariesopt ocamlbuild-mixed-boot ocamlbuild.native
++camlp4opt: ocamlopt otherlibrariesopt ocamlbuild-mixed-boot $(OCAMLBUILDNATIVE)
+ 	./build/camlp4-native-only.sh
+ 
+ # Ocamlbuild
+-#ifeq ($(OCAMLBUILD_NOBOOT),"yes")
+-#ocamlbuild.byte: ocamlc
+-#	$(MAKE) -C ocamlbuild -f Makefile.noboot
+-#else
+-ocamlbuild.byte: ocamlc ocamlbuild-mixed-boot
++ifeq ($(OCAMLBUILD_NOBOOT),"yes")
++$(OCAMLBUILDBYTE): ocamlc
++	$(MAKE) -C ocamlbuild -f Makefile.noboot
++else
++$(OCAMLBUILDBYTE): ocamlc ocamlbuild-mixed-boot
+ 	./build/ocamlbuild-byte-only.sh
+-#endif
++endif
+ 
+-ocamlbuild.native: ocamlopt ocamlbuild-mixed-boot
++$(OCAMLBUILDNATIVE): ocamlopt ocamlbuild-mixed-boot
+ 	./build/ocamlbuild-native-only.sh
+ ocamlbuildlib.native: ocamlopt ocamlbuild-mixed-boot
+ 	./build/ocamlbuildlib-native-only.sh
+@@ -809,7 +815,7 @@ distclean:
+ .PHONY: compare core coreall
+ .PHONY: coreboot defaultentry depend distclean install installopt
+ .PHONY: library library-cross libraryopt
+-.PHONY: ocamlbuild.byte ocamlbuild.native ocamldebugger ocamldoc
++.PHONY: $(OCAMLBUILDBYTE) $(OCAMLBUILDNATIVE) ocamldebugger ocamldoc
+ .PHONY: ocamldoc.opt ocamllex ocamllex.opt ocamltools ocamltoolsopt
+ .PHONY: ocamltoolsopt.opt ocamlyacc opt-core opt opt.opt otherlibraries
+ .PHONY: otherlibrariesopt package-macosx promote promote-cross
+diff --git a/config/Makefile.mingw b/config/Makefile.mingw
+index bc6a2bc..0a5a0b1 100644
+--- a/config/Makefile.mingw
++++ b/config/Makefile.mingw
+@@ -18,7 +18,7 @@
+ PREFIX=C:/ocamlmgw
+ 
+ ### Remove this to disable compiling camlp4
+-CAMLP4=camlp4
++WITH_CAMLP4=camlp4
+ 
+ ### Where to install the binaries
+ BINDIR=$(PREFIX)/bin
+diff --git a/config/Makefile.mingw64 b/config/Makefile.mingw64
+index 9afc32d..d941aaa 100644
+--- a/config/Makefile.mingw64
++++ b/config/Makefile.mingw64
+@@ -18,7 +18,7 @@
+ PREFIX=C:/ocamlmgw64
+ 
+ ### Remove this to disable compiling camlp4
+-CAMLP4=camlp4
++WITH_CAMLP4=camlp4
+ 
+ ### Where to install the binaries
+ BINDIR=$(PREFIX)/bin
+diff --git a/config/Makefile.msvc b/config/Makefile.msvc
+index 45cf8e4..cd72c06 100644
+--- a/config/Makefile.msvc
++++ b/config/Makefile.msvc
+@@ -143,7 +143,7 @@ PACKLD=link /lib /nologo /out:# there must be no space after this '/out:'
+ # This variable controls whether camlp4 will be built.
+ # If it is set to camlp4, then it will be built.
+ # If it is set to the empty string, then it will not be built.
+-CAMLP4=camlp4
++WITH_CAMLP4=camlp4
+ 
+ ############# Configuration for the contributed libraries
+ 
+diff --git a/config/Makefile.msvc64 b/config/Makefile.msvc64
+index 96e92e9..4b1b0c9 100644
+--- a/config/Makefile.msvc64
++++ b/config/Makefile.msvc64
+@@ -148,7 +148,7 @@ PACKLD=link /lib /nologo /machine:AMD64 /out:# there must be no space after this
+ # This variable controls whether camlp4 will be built.
+ # If it is set to camlp4, then it will be built.
+ # If it is set to the empty string, then it will not be built.
+-CAMLP4=camlp4
++WITH_CAMLP4=camlp4
+ 
+ ############# Configuration for the contributed libraries
+ 
+diff --git a/configure b/configure
+index 385eac4..edcd9ac 100755
+--- a/configure
++++ b/configure
+@@ -44,6 +44,9 @@ withsharedlibs=yes
+ gcc_warnings="-Wall"
+ partialld="ld -r"
+ withcamlp4=camlp4
++withdebugger=debugger
++withocamldoc=ocamldoc
++withocamlbuild=ocamlbuild
+ TOOLPREF=""
+ 
+ # Try to turn internationalization off, can cause config.guess to malfunction!
+@@ -140,6 +143,12 @@ while : ; do
+         debugruntime=runtimed;;
+     -no-camlp4|--no-camlp4)
+         withcamlp4="";;
++    -no-debugger|--no-debugger)
++        withdebugger="";;
++    -no-ocamldoc|--no-ocamldoc)
++        withocamldoc="";;
++    -no-ocamlbuild|--no-ocamlbuild)
++        withocamlbuild="";;
+     *) err "Unknown option \"$1\".";;
+   esac
+   shift
+@@ -170,6 +179,10 @@ case "$mandir" in
+    *) err 'The -mandir directory must be absolute or relative to $(PREFIX).';;
+ esac
+ 
++if test -n "$withcamlp4" -a -z "$withocamlbuild"; then
++  err "Camlp4 is enabled but not ocamlbuild; building camlp4 is not possible without building ocamlbuild."
++fi
++
+ # Generate the files
+ 
+ cd config/auto-aux
+@@ -1209,13 +1222,15 @@ if sh ./hasgot mktime; then
+   echo "#define HAS_MKTIME" >> s.h
+ fi
+ 
+-case "$target" in
+-  *-*-cygwin*) ;;  # setsid emulation under Cygwin breaks the debugger
+-  *) if sh ./hasgot setsid; then
+-       inf "setsid() found."
+-       echo "#define HAS_SETSID" >> s.h
+-     fi;;
+-esac
++if test -n "$debugger"; then
++  case "$target" in
++    *-*-cygwin*) ;;  # setsid emulation under Cygwin breaks the debugger
++    *) if sh ./hasgot setsid; then
++         inf "setsid() found."
++         echo "#define HAS_SETSID" >> s.h
++       fi;;
++  esac
++fi
+ 
+ if sh ./hasgot putenv; then
+   inf "putenv() found."
+@@ -1775,7 +1790,10 @@ echo "MKEXEDEBUGFLAG=$mkexedebugflag" >> Makefile
+ echo "MKDLL=$mksharedlib" >> Makefile
+ echo "MKMAINDLL=$mkmaindll" >> Makefile
+ echo "RUNTIMED=${debugruntime}" >>Makefile
+-echo "CAMLP4=${withcamlp4}" >>Makefile
++echo "WITH_CAMLP4=${withcamlp4}" >>Makefile
++echo "WITH_DEBUGGER=${withdebugger}" >>Makefile
++echo "WITH_OCAMLDOC=${withocamldoc}" >>Makefile
++echo "WITH_OCAMLBUILD=${withocamlbuild}" >>Makefile
+ echo "ASM_CFI_SUPPORTED=$asm_cfi_supported" >> Makefile
+ echo "TARGET=$target" >> Makefile
+ echo "HOST=$host" >> Makefile
+-- 
+1.8.1.4
+

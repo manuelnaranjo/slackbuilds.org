@@ -1,0 +1,362 @@
+From 9a0e266f61676759acac04c3f6bb68df654b0822 Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Sun, 13 Jan 2013 11:12:39 +0100
+Subject: [PATCH 21/34] build: remove ocamlcomp(opt).sh.
+
+---
+ .ignore                       |  2 --
+ Makefile                      | 20 ++++----------------
+ debugger/Makefile.shared      |  2 +-
+ driver/ocamlcomp.sh.in        | 17 -----------------
+ lex/Makefile                  |  4 ++--
+ myocamlbuild.ml               |  4 ++--
+ myocamlbuild_config.mli       |  9 +++++++++
+ ocamlbuild/Makefile.noboot    |  4 ++--
+ ocamldoc/Makefile             |  4 ++--
+ otherlibs/Makefile            |  4 ++--
+ otherlibs/Makefile.shared     | 14 +++++++-------
+ otherlibs/dynlink/Makefile    |  4 ++--
+ otherlibs/systhreads/Makefile |  4 ++--
+ otherlibs/threads/Makefile    |  2 +-
+ stdlib/Makefile.shared        |  4 ++--
+ tools/Makefile.shared         |  4 ++--
+ 16 files changed, 40 insertions(+), 62 deletions(-)
+ delete mode 100644 driver/ocamlcomp.sh.in
+
+diff --git a/.ignore b/.ignore
+index 7e8d3f0..4bb83e4 100644
+--- a/.ignore
++++ b/.ignore
+@@ -5,8 +5,6 @@ expunge
+ ocaml
+ ocamlopt
+ ocamlopt.opt
+-ocamlcomp.sh
+-ocamlcompopt.sh
+ package-macosx
+ _boot_log1
+ _boot_log2
+diff --git a/Makefile b/Makefile
+index d576d22..c06ef3a 100644
+--- a/Makefile
++++ b/Makefile
+@@ -15,8 +15,8 @@
+ include config/Makefile
+ include stdlib/StdlibModules
+ 
+-CAMLC=$(CAMLC_BIN) -nostdlib -I boot
+-CAMLOPT=$(CAMLOPT_BIN) -nostdlib -I stdlib -I otherlibs/dynlink
++CAMLC=$(CAMLC_HOST_BIN)
++CAMLOPT=$(CAMLOPT_HOST_BIN) -I otherlibs/dynlink
+ COMPFLAGS=-strict-sequence -w +33..39 -warn-error A $(INCLUDES)
+ LINKFLAGS=
+ 
+@@ -343,9 +343,6 @@ partialclean::
+ ocamlc: compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma $(BYTESTART)
+ 	$(CAMLC) $(LINKFLAGS) -o ocamlc \
+ 		compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma $(BYTESTART)
+-	@sed -e 's|@compiler@|$(CAMLC_BIN)|' \
+-	  driver/ocamlcomp.sh.in > ocamlcomp.sh
+-	@chmod +x ocamlcomp.sh
+ 
+ # The native-code compiler
+ 
+@@ -357,12 +354,9 @@ partialclean::
+ ocamlopt: compilerlibs/ocamlcommon.cma compilerlibs/ocamloptcomp.cma $(OPTSTART)
+ 	$(CAMLC) $(LINKFLAGS) -o ocamlopt \
+ 		compilerlibs/ocamlcommon.cma compilerlibs/ocamloptcomp.cma $(OPTSTART)
+-	@sed -e 's|@compiler@|$(CAMLOPT_BIN)|' \
+-	  driver/ocamlcomp.sh.in > ocamlcompopt.sh
+-	@chmod +x ocamlcompopt.sh
+ 
+ partialclean::
+-	rm -f ocamlopt ocamlcompopt.sh
++	rm -f ocamlopt
+ 
+ # The toplevel
+ 
+@@ -468,9 +462,6 @@ ocamlc.opt: compilerlibs/ocamlcommon.cmxa compilerlibs/ocamlbytecomp.cmxa $(BYTE
+ 	$(CAMLOPT) $(LINKFLAGS) -ccopt "$(BYTECCLINKOPTS)" -o ocamlc.opt \
+ 		compilerlibs/ocamlcommon.cmxa compilerlibs/ocamlbytecomp.cmxa \
+ 		$(BYTESTART:.cmo=.cmx) -cclib "$(BYTECCLIBS)"
+-	@sed -e 's|@compiler@|$(ROOTDIR)/ocamlc.opt|' \
+-		driver/ocamlcomp.sh.in > ocamlcomp.sh
+-	@chmod +x ocamlcomp.sh
+ 
+ partialclean::
+ 	rm -f ocamlc.opt
+@@ -486,9 +477,6 @@ ocamlopt.opt: compilerlibs/ocamlcommon.cmxa compilerlibs/ocamloptcomp.cmxa $(OPT
+ 	$(CAMLOPT) $(LINKFLAGS) -o ocamlopt.opt \
+ 		compilerlibs/ocamlcommon.cmxa compilerlibs/ocamloptcomp.cmxa \
+ 		$(OPTSTART:.cmo=.cmx)
+-	@sed -e 's|@compiler@|$(ROOTDIR)/ocamlopt.opt|' \
+-	  driver/ocamlcomp.sh.in > ocamlcompopt.sh
+-	@chmod +x ocamlcompopt.sh
+ 
+ partialclean::
+ 	rm -f ocamlopt.opt
+@@ -804,7 +792,7 @@ alldepend:: depend
+ 
+ distclean:
+ 	./build/distclean.sh
+-	rm -f ocaml ocamlcomp.sh testsuite/_log
++	rm -f ocaml testsuite/_log
+ 
+ .PHONY: all backup bootstrap camlp4opt camlp4out checkstack clean
+ .PHONY: partialclean beforedepend alldepend cleanboot coldstart
+diff --git a/debugger/Makefile.shared b/debugger/Makefile.shared
+index df62723..a296309 100644
+--- a/debugger/Makefile.shared
++++ b/debugger/Makefile.shared
+@@ -12,7 +12,7 @@
+ 
+ include ../config/Makefile
+ 
+-CAMLC=../ocamlcomp.sh
++CAMLC=$(CAMLC_TARGET_BIN)
+ COMPFLAGS=-g -warn-error A $(INCLUDES)
+ LINKFLAGS=-g -linkall -I $(UNIXDIR)
+ YACCFLAGS=
+diff --git a/driver/ocamlcomp.sh.in b/driver/ocamlcomp.sh.in
+deleted file mode 100644
+index fc0a8e1..0000000
+--- a/driver/ocamlcomp.sh.in
++++ /dev/null
+@@ -1,17 +0,0 @@
+-#!/bin/sh
+-
+-#########################################################################
+-#                                                                       #
+-#                                 OCaml                                 #
+-#                                                                       #
+-#            Jacques Garrigue, Kyoto University RIMS                    #
+-#                                                                       #
+-#   Copyright 2002 Institut National de Recherche en Informatique et    #
+-#   en Automatique.  All rights reserved.  This file is distributed     #
+-#   under the terms of the Q Public License version 1.0.                #
+-#                                                                       #
+-#########################################################################
+-
+-topdir=`dirname $0`
+-
+-exec @compiler@ -nostdlib -I $topdir/stdlib "$@"
+diff --git a/lex/Makefile b/lex/Makefile
+index de09227..5c560f8 100644
+--- a/lex/Makefile
++++ b/lex/Makefile
+@@ -13,8 +13,8 @@
+ include ../config/Makefile
+ 
+ # The lexer generator
+-CAMLC=$(CAMLC_BIN) -strict-sequence -nostdlib -I ../boot
+-CAMLOPT=$(CAMLOPT_BIN) -nostdlib -I ../stdlib
++CAMLC=$(CAMLC_HOST_BIN) -strict-sequence
++CAMLOPT=$(CAMLOPT_HOST_BIN)
+ COMPFLAGS=-w +33..39 -warn-error A
+ YACCFLAGS=-v
+ 
+diff --git a/myocamlbuild.ml b/myocamlbuild.ml
+index bd2bc71..5a992b6 100644
+--- a/myocamlbuild.ml
++++ b/myocamlbuild.ml
+@@ -122,13 +122,13 @@ let systhreads_lib f = "otherlibs/systhreads"/f-.-C.a
+ let systhreads_dll f = "otherlibs/systhreads"/f-.-C.so
+ 
+ let ocamlc_solver () =
+-  C.camlc_host_bin;;
++  S[A C.camlc_host_bin];;
+ 
+ Command.setup_virtual_command_solver "OCAMLC" ocamlc_solver;;
+ Command.setup_virtual_command_solver "OCAMLCWIN" (convert_for_windows_shell ocamlc_solver);;
+ 
+ let ocamlopt_solver () =
+-  C.camlopt_host_bin;;
++  S[A C.camlopt_host_bin];;
+ 
+ Command.setup_virtual_command_solver "OCAMLOPT" ocamlopt_solver;;
+ Command.setup_virtual_command_solver "OCAMLOPTWIN" (convert_for_windows_shell ocamlopt_solver);;
+diff --git a/myocamlbuild_config.mli b/myocamlbuild_config.mli
+index 340ce68..c73a2ac 100644
+--- a/myocamlbuild_config.mli
++++ b/myocamlbuild_config.mli
+@@ -24,6 +24,15 @@ val pthread_link : string
+ val x11_includes : string
+ val x11_link : string
+ val tk_link : string
++val ocamldoc_bin : string
++val camlyacc_bin : string
++val camllex_bin : string
++val camldep_bin : string
++val camlc_host_bin : string
++val camlopt_host_bin : string
++val camlmklib_bin : string
++val camlc_target_bin : string
++val camlopt_target_bin : string
+ val bytecc : string
+ val bytecccompopts : string
+ val bytecclinkopts : string
+diff --git a/ocamlbuild/Makefile.noboot b/ocamlbuild/Makefile.noboot
+index 503f000..ec81487 100644
+--- a/ocamlbuild/Makefile.noboot
++++ b/ocamlbuild/Makefile.noboot
+@@ -17,8 +17,8 @@ include ../config/Makefile
+ 
+ # Various commands and dir
+ ##########################
+-OCAMLC   = ../ocamlcomp.sh
+-OCAMLOPT = ../ocamlcompopt.sh
++OCAMLC   = $(CAMLC_HOST_BIN)
++OCAMLOPT = $(CAMLOPT_HOST_BIN)
+ OCAMLLIB = $(LIBDIR)
+ OCAMLBIN = $(BINDIR)
+ 
+diff --git a/ocamldoc/Makefile b/ocamldoc/Makefile
+index 1aeb36f..ec0d82b 100644
+--- a/ocamldoc/Makefile
++++ b/ocamldoc/Makefile
+@@ -14,8 +14,8 @@ include ../config/Makefile
+ 
+ # Various commands and dir
+ ##########################
+-OCAMLC   = ../ocamlcomp.sh
+-OCAMLOPT = ../ocamlcompopt.sh
++OCAMLC   = $(CAMLC_HOST_BIN)
++OCAMLOPT = $(CAMLOPT_HOST_BIN)
+ OCAMLDEP = $(CAMLDEP_BIN)
+ OCAMLLEX = $(CAMLLEX_BIN)
+ OCAMLYACC= $(CAMLYACC_BIN)
+diff --git a/otherlibs/Makefile b/otherlibs/Makefile
+index 6c3e58a..e588cf5 100644
+--- a/otherlibs/Makefile
++++ b/otherlibs/Makefile
+@@ -13,8 +13,8 @@
+ 
+ # Common Makefile for otherlibs on the Unix ports
+ 
+-CAMLC=$(ROOTDIR)/ocamlcomp.sh
+-CAMLOPT=$(ROOTDIR)/ocamlcompopt.sh
++CAMLC=$(CAMLC_TARGET_BIN)
++CAMLOPT=$(CAMLOPT_TARGET_BIN)
+ CFLAGS=-I$(ROOTDIR)/byterun -O $(SHAREDCCCOMPOPTS) $(EXTRACFLAGS)
+ 
+ include ../Makefile.shared
+diff --git a/otherlibs/Makefile.shared b/otherlibs/Makefile.shared
+index 78297e1..313f034 100644
+--- a/otherlibs/Makefile.shared
++++ b/otherlibs/Makefile.shared
+@@ -42,16 +42,16 @@ all: lib$(CLIBNAME).$(A) $(LIBNAME).cma $(CMIFILES)
+ allopt: lib$(CLIBNAME).$(A) $(LIBNAME).cmxa $(LIBNAME).$(CMXS) $(CMIFILES)
+ 
+ $(LIBNAME).cma: $(CAMLOBJS)
+-	$(MKLIB) -o $(LIBNAME) -oc $(CLIBNAME) -ocamlc '$(CAMLC_BIN)' -linkall $(CAMLOBJS) $(LINKOPTS)
++	$(MKLIB) -o $(LIBNAME) -oc $(CLIBNAME) -ocamlc '$(CAMLC_TARGET_BIN)' -linkall $(CAMLOBJS) $(LINKOPTS)
+ 
+ $(LIBNAME).cmxa: $(CAMLOBJS_NAT)
+-	$(MKLIB) -o $(LIBNAME) -oc $(CLIBNAME) -ocamlopt '$(CAMLOPT_BIN)' -linkall $(CAMLOBJS_NAT) $(LINKOPTS)
++	$(MKLIB) -o $(LIBNAME) -oc $(CLIBNAME) -ocamlopt '$(CAMLOPT_TARGET_BIN)' -linkall $(CAMLOBJS_NAT) $(LINKOPTS)
+ 
+ $(LIBNAME).cmxs: $(LIBNAME).cmxa lib$(CLIBNAME).$(A)
+-	$(CAMLOPT_BIN) -shared -o $(LIBNAME).cmxs -I . $(LIBNAME).cmxa
++	$(CAMLOPT_TARGET_BIN) -shared -o $(LIBNAME).cmxs -I . $(LIBNAME).cmxa
+ 
+ lib$(CLIBNAME).$(A): $(COBJS)
+-	$(MKLIB) -oc $(CLIBNAME) $(COBJS) $(LDOPTS)
++	$(MKLIB) -oc $(CLIBNAME) -ocamlc '$(CAMLC_TARGET_BIN)' $(COBJS) $(LDOPTS)
+ 
+ install::
+ 	if test -f dll$(CLIBNAME)$(EXT_DLL); then \
+@@ -75,13 +75,13 @@ clean:: partialclean
+ .SUFFIXES: .ml .mli .cmi .cmo .cmx .$(O)
+ 
+ .mli.cmi:
+-	$(CAMLC_BIN) -c $(COMPFLAGS) $<
++	$(CAMLC_TARGET_BIN) -c $(COMPFLAGS) $<
+ 
+ .ml.cmo:
+-	$(CAMLC_BIN) -c $(COMPFLAGS) $<
++	$(CAMLC_TARGET_BIN) -c $(COMPFLAGS) $<
+ 
+ .ml.cmx:
+-	$(CAMLOPT_BIN) -c $(COMPFLAGS) $<
++	$(CAMLOPT_TARGET_BIN) -c $(COMPFLAGS) $<
+ 
+ .c.$(O):
+ 	$(BYTECC) $(BYTECCCOMPOPTS) $(CFLAGS) -c $<
+diff --git a/otherlibs/dynlink/Makefile b/otherlibs/dynlink/Makefile
+index 3a5b105..e2dd5af 100644
+--- a/otherlibs/dynlink/Makefile
++++ b/otherlibs/dynlink/Makefile
+@@ -15,8 +15,8 @@
+ 
+ include ../../config/Makefile
+ 
+-CAMLC=$(CAMLC_BIN)
+-CAMLOPT=../../ocamlcompopt.sh
++CAMLC=$(CAMLC_TARGET_BIN)
++CAMLOPT=$(CAMLOPT_TARGET_BIN)
+ INCLUDES=-I ../../utils -I ../../typing -I ../../bytecomp -I ../../asmcomp
+ COMPFLAGS=-w +33..39 -warn-error A -I ../../stdlib $(INCLUDES)
+ 
+diff --git a/otherlibs/systhreads/Makefile b/otherlibs/systhreads/Makefile
+index 791ae99..a20cad2 100644
+--- a/otherlibs/systhreads/Makefile
++++ b/otherlibs/systhreads/Makefile
+@@ -13,8 +13,8 @@
+ 
+ include ../../config/Makefile
+ 
+-CAMLC=../../ocamlcomp.sh -I ../unix
+-CAMLOPT=../../ocamlcompopt.sh -I ../unix
++CAMLC=$(CAMLC_TARGET_BIN) -I $(UNIXLIB)
++CAMLOPT=$(CAMLOPT_TARGET_BIN) -I $(UNIXLIB)
+ MKLIB=../../boot/ocamlrun ../../tools/ocamlmklib
+ COMPFLAGS=-w +33..39 -warn-error A -g
+ 
+diff --git a/otherlibs/threads/Makefile b/otherlibs/threads/Makefile
+index fb05139..8517a96 100644
+--- a/otherlibs/threads/Makefile
++++ b/otherlibs/threads/Makefile
+@@ -15,7 +15,7 @@ include ../../config/Makefile
+ 
+ CC=$(BYTECC)
+ CFLAGS=-I../../byterun -O $(BYTECCCOMPOPTS) $(SHAREDCCCOMPOPTS) -g
+-CAMLC=../../ocamlcomp.sh -I ../unix
++CAMLC=$(CAMLC_TARGET_BIN) -I $(UNIXLIB)
+ MKLIB=../../boot/ocamlrun ../../tools/ocamlmklib
+ COMPFLAGS=-w +33..39 -warn-error A
+ 
+diff --git a/stdlib/Makefile.shared b/stdlib/Makefile.shared
+index cc9cc2b..ecfb92b 100755
+--- a/stdlib/Makefile.shared
++++ b/stdlib/Makefile.shared
+@@ -13,10 +13,10 @@
+ 
+ include ../config/Makefile
+ COMPILER=../ocamlc
+-CAMLC=$(CAMLC_BIN)
++CAMLC=$(CAMLC_HOST_BIN)
+ COMPFLAGS=-strict-sequence -w +33..39 -g -warn-error A -nostdlib
+ OPTCOMPILER=../ocamlopt
+-CAMLOPT=$(CAMLOPT_BIN)
++CAMLOPT=$(CAMLOPT_HOST_BIN)
+ OPTCOMPFLAGS=-warn-error A -nostdlib -g
+ CAMLDEP=$(CAMLDEP_BIN)
+ 
+diff --git a/tools/Makefile.shared b/tools/Makefile.shared
+index 2dba802..70960f7 100644
+--- a/tools/Makefile.shared
++++ b/tools/Makefile.shared
+@@ -12,8 +12,8 @@
+ 
+ include ../config/Makefile
+ 
+-CAMLC=$(CAMLC_BIN) -strict-sequence -nostdlib -I ../boot
+-CAMLOPT=$(CAMLOPT_BIN) -nostdlib -I ../stdlib
++CAMLC=$(CAMLC_HOST_BIN) -strict-sequence
++CAMLOPT=$(CAMLOPT_HOST_BIN)
+ INCLUDES=-I ../utils -I ../parsing -I ../typing -I ../bytecomp -I ../asmcomp \
+ 	 -I ../driver
+ COMPFLAGS= -w +32+33+34+35+36+37+38+39 -warn-error A $(INCLUDES)
+-- 
+1.8.1.4
+

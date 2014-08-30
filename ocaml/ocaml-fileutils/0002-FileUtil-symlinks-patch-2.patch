@@ -1,0 +1,81 @@
+From e18b77d3c22dc667bf5643bb2c66fb22ef58ce31 Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Sat, 18 Jan 2014 17:32:41 +0100
+Subject: [PATCH 2/2] FileUtil: symlinks patch 2
+
+---
+ src/FileUtil.ml | 50 ++++++++++++++++++++++----------------------------
+ 1 file changed, 22 insertions(+), 28 deletions(-)
+
+diff --git a/src/FileUtil.ml b/src/FileUtil.ml
+index deb87a4..f17c6b1 100644
+--- a/src/FileUtil.ml
++++ b/src/FileUtil.ml
+@@ -443,35 +443,28 @@ let stat ?(follow = Follow) (fln: filename) =
+       | Follow ->
+             unix_stat fln
+     in
+-    let stat_of_kind knd = 
+-      {
+-        kind              = knd;
+-        permission        = permission_of_int ustat.Unix.LargeFile.st_perm;
+-        size              = B ustat.Unix.LargeFile.st_size;
+-        owner             = ustat.Unix.LargeFile.st_uid;
+-        group_owner       = ustat.Unix.LargeFile.st_gid;
+-        access_time       = ustat.Unix.LargeFile.st_atime;
+-        modification_time = ustat.Unix.LargeFile.st_mtime;
+-        creation_time     = ustat.Unix.LargeFile.st_ctime;
+-        inode             = ustat.Unix.LargeFile.st_ino;
+-        device            = ustat.Unix.LargeFile.st_dev;
+-      }
+-    in
++    let kind =
+       match ustat.Unix.LargeFile.st_kind with
+-        | Unix.S_REG -> 
+-            stat_of_kind File 
+-        | Unix.S_DIR -> 
+-            stat_of_kind Dir 
+-        | Unix.S_CHR -> 
+-            stat_of_kind Dev_char 
+-        | Unix.S_BLK -> 
+-            stat_of_kind Dev_block
+-        | Unix.S_FIFO -> 
+-            stat_of_kind Fifo 
+-        | Unix.S_SOCK -> 
+-            stat_of_kind Socket
+-        | Unix.S_LNK -> 
+-            stat_of_kind Link
++      | Unix.S_REG  -> File 
++      | Unix.S_DIR  -> Dir 
++      | Unix.S_CHR  -> Dev_char 
++      | Unix.S_BLK  -> Dev_block
++      | Unix.S_FIFO -> Fifo 
++      | Unix.S_SOCK -> Socket
++      | Unix.S_LNK  -> Link
++    in
++    {
++      kind              = kind;
++      permission        = permission_of_int ustat.Unix.LargeFile.st_perm;
++      size              = B ustat.Unix.LargeFile.st_size;
++      owner             = ustat.Unix.LargeFile.st_uid;
++      group_owner       = ustat.Unix.LargeFile.st_gid;
++      access_time       = ustat.Unix.LargeFile.st_atime;
++      modification_time = ustat.Unix.LargeFile.st_mtime;
++      creation_time     = ustat.Unix.LargeFile.st_ctime;
++      inode             = ustat.Unix.LargeFile.st_ino;
++      device            = ustat.Unix.LargeFile.st_dev;
++    }
+   with Unix.Unix_error(_) ->
+     raise (FileDoesntExist fln)
+ ;;
+@@ -687,6 +680,7 @@ let readlink fln =
+         let dst_link = 
+           Unix.readlink src_link 
+         in
++        (if dst_link = src_link then raise (RecursiveLink src_link));
+         let real_link = 
+           if is_relative dst_link then
+             reduce (concat (dirname src_link) dst_link)
+-- 
+1.8.4
+

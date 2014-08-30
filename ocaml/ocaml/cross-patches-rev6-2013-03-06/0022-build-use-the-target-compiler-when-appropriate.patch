@@ -1,0 +1,214 @@
+From 0095e6e6c6c217392b8c0fdde292a94d099af96d Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Sun, 13 Jan 2013 16:18:36 +0100
+Subject: [PATCH 22/34] build: use the target compiler when appropriate.
+
+---
+ Makefile               | 47 ++++++++++++++++++++++-------------------------
+ stdlib/Makefile.shared | 14 ++++++--------
+ 2 files changed, 28 insertions(+), 33 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index c06ef3a..278dffc 100644
+--- a/Makefile
++++ b/Makefile
+@@ -15,8 +15,6 @@
+ include config/Makefile
+ include stdlib/StdlibModules
+ 
+-CAMLC=$(CAMLC_HOST_BIN)
+-CAMLOPT=$(CAMLOPT_HOST_BIN) -I otherlibs/dynlink
+ COMPFLAGS=-strict-sequence -w +33..39 -warn-error A $(INCLUDES)
+ LINKFLAGS=
+ 
+@@ -329,30 +327,30 @@ clean:: partialclean
+ # Shared parts of the system
+ 
+ compilerlibs/ocamlcommon.cma: $(COMMON)
+-	$(CAMLC) -a -o $@ $(COMMON)
++	$(CAMLC_HOST_BIN) -a -o $@ $(COMMON)
+ partialclean::
+ 	rm -f compilerlibs/ocamlcommon.cma
+ 
+ # The bytecode compiler
+ 
+ compilerlibs/ocamlbytecomp.cma: $(BYTECOMP)
+-	$(CAMLC) -a -o $@ $(BYTECOMP)
++	$(CAMLC_HOST_BIN) -a -o $@ $(BYTECOMP)
+ partialclean::
+ 	rm -f compilerlibs/ocamlbytecomp.cma
+ 
+ ocamlc: compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma $(BYTESTART)
+-	$(CAMLC) $(LINKFLAGS) -o ocamlc \
++	$(CAMLC_HOST_BIN) $(LINKFLAGS) -o ocamlc \
+ 		compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma $(BYTESTART)
+ 
+ # The native-code compiler
+ 
+ compilerlibs/ocamloptcomp.cma: $(ASMCOMP)
+-	$(CAMLC) -a -o $@ $(ASMCOMP)
++	$(CAMLC_HOST_BIN) -a -o $@ $(ASMCOMP)
+ partialclean::
+ 	rm -f compilerlibs/ocamloptcomp.cma
+ 
+ ocamlopt: compilerlibs/ocamlcommon.cma compilerlibs/ocamloptcomp.cma $(OPTSTART)
+-	$(CAMLC) $(LINKFLAGS) -o ocamlopt \
++	$(CAMLC_HOST_BIN) $(LINKFLAGS) -o ocamlopt \
+ 		compilerlibs/ocamlcommon.cma compilerlibs/ocamloptcomp.cma $(OPTSTART)
+ 
+ partialclean::
+@@ -361,14 +359,14 @@ partialclean::
+ # The toplevel
+ 
+ compilerlibs/ocamltoplevel.cma: $(TOPLEVEL)
+-	$(CAMLC) -a -o $@ $(TOPLEVEL)
++	$(CAMLC_HOST_BIN) -a -o $@ $(TOPLEVEL)
+ partialclean::
+ 	rm -f compilerlibs/ocamltoplevel.cma
+ 
+ ocaml: compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma compilerlibs/ocamltoplevel.cma $(TOPLEVELSTART) expunge
+-	$(CAMLC) $(LINKFLAGS) -linkall -o ocaml.tmp \
+-	  compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma \
+-	  compilerlibs/ocamltoplevel.cma $(TOPLEVELSTART)
++	$(CAMLC_HOST_BIN) $(LINKFLAGS) -linkall -o ocaml.tmp \
++		compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma \
++		compilerlibs/ocamltoplevel.cma $(TOPLEVELSTART)
+ 	- $(CAMLRUN) ./expunge ocaml.tmp ocaml $(PERVASIVES)
+ 	rm -f ocaml.tmp
+ 
+@@ -378,8 +376,8 @@ partialclean::
+ # The native toplevel
+ 
+ ocamlnat: ocamlopt otherlibs/dynlink/dynlink.cmxa $(NATTOPOBJS:.cmo=.cmx)
+-	$(CAMLOPT) $(LINKFLAGS) otherlibs/dynlink/dynlink.cmxa -o ocamlnat \
+-		   $(NATTOPOBJS:.cmo=.cmx) -linkall
++	$(CAMLOPT_HOST_BIN) $(LINKFLAGS) otherlibs/dynlink/dynlink.cmxa -o ocamlnat \
++		$(NATTOPOBJS:.cmo=.cmx) -linkall
+ 
+ toplevel/opttoploop.cmx: otherlibs/dynlink/dynlink.cmxa
+ 
+@@ -447,19 +445,19 @@ beforedepend:: parsing/lexer.ml
+ # Shared parts of the system compiled with the native-code compiler
+ 
+ compilerlibs/ocamlcommon.cmxa: $(COMMON:.cmo=.cmx)
+-	$(CAMLOPT) -a -o $@ $(COMMON:.cmo=.cmx)
++	$(CAMLOPT_HOST_BIN) -a -o $@ $(COMMON:.cmo=.cmx)
+ partialclean::
+ 	rm -f compilerlibs/ocamlcommon.cmxa compilerlibs/ocamlcommon.a
+ 
+ # The bytecode compiler compiled with the native-code compiler
+ 
+ compilerlibs/ocamlbytecomp.cmxa: $(BYTECOMP:.cmo=.cmx)
+-	$(CAMLOPT) -a -o $@ $(BYTECOMP:.cmo=.cmx)
++	$(CAMLOPT_HOST_BIN) -a -o $@ $(BYTECOMP:.cmo=.cmx)
+ partialclean::
+ 	rm -f compilerlibs/ocamlbytecomp.cmxa compilerlibs/ocamlbytecomp.a
+ 
+ ocamlc.opt: compilerlibs/ocamlcommon.cmxa compilerlibs/ocamlbytecomp.cmxa $(BYTESTART:.cmo=.cmx)
+-	$(CAMLOPT) $(LINKFLAGS) -ccopt "$(BYTECCLINKOPTS)" -o ocamlc.opt \
++	$(CAMLOPT_HOST_BIN) $(LINKFLAGS) -ccopt "$(BYTECCLINKOPTS)" -o ocamlc.opt \
+ 		compilerlibs/ocamlcommon.cmxa compilerlibs/ocamlbytecomp.cmxa \
+ 		$(BYTESTART:.cmo=.cmx) -cclib "$(BYTECCLIBS)"
+ 
+@@ -469,12 +467,12 @@ partialclean::
+ # The native-code compiler compiled with itself
+ 
+ compilerlibs/ocamloptcomp.cmxa: $(ASMCOMP:.cmo=.cmx)
+-	$(CAMLOPT) -a -o $@ $(ASMCOMP:.cmo=.cmx)
++	$(CAMLOPT_HOST_BIN) -a -o $@ $(ASMCOMP:.cmo=.cmx)
+ partialclean::
+ 	rm -f compilerlibs/ocamloptcomp.cmxa compilerlibs/ocamloptcomp.a
+ 
+ ocamlopt.opt: compilerlibs/ocamlcommon.cmxa compilerlibs/ocamloptcomp.cmxa $(OPTSTART:.cmo=.cmx)
+-	$(CAMLOPT) $(LINKFLAGS) -o ocamlopt.opt \
++	$(CAMLOPT_HOST_BIN) $(LINKFLAGS) -o ocamlopt.opt \
+ 		compilerlibs/ocamlcommon.cmxa compilerlibs/ocamloptcomp.cmxa \
+ 		$(OPTSTART:.cmo=.cmx)
+ 
+@@ -567,14 +565,13 @@ partialclean::
+ beforedepend:: asmcomp/emit.ml
+ 
+ tools/cvt_emit: tools/cvt_emit.mll
+-	cd tools; \
+-	$(MAKE) CAMLC="$(CAMLC) -I ../stdlib" cvt_emit
++	$(MAKE) -C tools CAMLC="$(CAMLC_HOST_BIN)" cvt_emit
+ 
+ # The "expunge" utility
+ 
+ expunge: compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma toplevel/expunge.cmo
+-	$(CAMLC) $(LINKFLAGS) -o expunge \
+-	  compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma toplevel/expunge.cmo
++	$(CAMLC_HOST_BIN) $(LINKFLAGS) -o expunge \
++		compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma toplevel/expunge.cmo
+ 
+ partialclean::
+ 	rm -f expunge
+@@ -770,13 +767,13 @@ clean::
+ .SUFFIXES: .ml .mli .cmo .cmi .cmx
+ 
+ .ml.cmo:
+-	$(CAMLC) $(COMPFLAGS) -c $<
++	$(CAMLC_HOST_BIN) $(COMPFLAGS) -c $<
+ 
+ .mli.cmi:
+-	$(CAMLC) $(COMPFLAGS) -c $<
++	$(CAMLC_HOST_BIN) $(COMPFLAGS) -c $<
+ 
+ .ml.cmx:
+-	$(CAMLOPT) $(COMPFLAGS) -c $<
++	$(CAMLOPT_HOST_BIN) $(COMPFLAGS) -c $<
+ 
+ partialclean::
+ 	for d in utils parsing typing bytecomp asmcomp driver toplevel tools; \
+diff --git a/stdlib/Makefile.shared b/stdlib/Makefile.shared
+index ecfb92b..3556683 100755
+--- a/stdlib/Makefile.shared
++++ b/stdlib/Makefile.shared
+@@ -13,10 +13,8 @@
+ 
+ include ../config/Makefile
+ COMPILER=../ocamlc
+-CAMLC=$(CAMLC_HOST_BIN)
+ COMPFLAGS=-strict-sequence -w +33..39 -g -warn-error A -nostdlib
+ OPTCOMPILER=../ocamlopt
+-CAMLOPT=$(CAMLOPT_HOST_BIN)
+ OPTCOMPFLAGS=-warn-error A -nostdlib -g
+ CAMLDEP=$(CAMLDEP_BIN)
+ 
+@@ -49,10 +47,10 @@ install-runtimed: camlheaderd
+ .PHONY: install-runtimed
+ 
+ stdlib.cma: $(OBJS)
+-	$(CAMLC) -a -o stdlib.cma $(OBJS)
++	$(CAMLC_HOST_BIN) -a -o stdlib.cma $(OBJS)
+ 
+ stdlib.cmxa: $(OBJS:.cmo=.cmx)
+-	$(CAMLOPT) -a -o stdlib.cmxa $(OBJS:.cmo=.cmx)
++	$(CAMLOPT_TARGET_BIN) -a -o stdlib.cmxa $(OBJS:.cmo=.cmx)
+ 
+ sys.ml: sys.mlp ../VERSION
+ 	sed -e "s|%%VERSION%%|`sed -e 1q ../VERSION`|" sys.mlp >sys.ml
+@@ -66,16 +64,16 @@ clean::
+ .SUFFIXES: .mli .ml .cmi .cmo .cmx .p.cmx
+ 
+ .mli.cmi:
+-	$(CAMLC) $(COMPFLAGS) `./Compflags $@` -c $<
++	$(CAMLC_HOST_BIN) $(COMPFLAGS) `./Compflags $@` -c $<
+ 
+ .ml.cmo:
+-	$(CAMLC) $(COMPFLAGS) `./Compflags $@` -c $<
++	$(CAMLC_HOST_BIN) $(COMPFLAGS) `./Compflags $@` -c $<
+ 
+ .ml.cmx:
+-	$(CAMLOPT) $(OPTCOMPFLAGS) `./Compflags $@` -c $<
++	$(CAMLOPT_TARGET_BIN) $(OPTCOMPFLAGS) `./Compflags $@` -c $<
+ 
+ .ml.p.cmx:
+-	$(CAMLOPT) $(OPTCOMPFLAGS) `./Compflags $@` -p -c -o $*.p.cmx $<
++	$(CAMLOPT_TARGET_BIN) $(OPTCOMPFLAGS) `./Compflags $@` -p -c -o $*.p.cmx $<
+ 
+ # Dependencies on the compiler
+ $(OBJS) std_exit.cmo: $(COMPILER)
+-- 
+1.8.1.4
+

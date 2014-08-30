@@ -1,0 +1,26 @@
+From 83be812f3dc130d6c307884fb34ae4dc8ade8eb3 Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Mon, 7 Jan 2013 21:26:38 +0100
+Subject: [PATCH 02/34] windows: don't define lseeki64 and lseek since it
+ already exists.
+
+---
+ byterun/caml/io.h | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/byterun/caml/io.h b/byterun/caml/io.h
+index 8420d15..1d0917e 100644
+--- a/byterun/caml/io.h
++++ b/byterun/caml/io.h
+@@ -25,8 +25,6 @@
+ 
+ #if defined(_WIN32)
+ typedef __int64 file_offset;
+-extern __int64 _lseeki64(int, __int64, int);
+-#define lseek(fd,d,m) _lseeki64(fd,d,m)
+ #elif defined(HAS_OFF_T)
+ #include <sys/types.h>
+ typedef off_t file_offset;
+-- 
+1.8.1.4
+

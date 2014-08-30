@@ -1,0 +1,293 @@
+From e5bebc01816f46ed7117c858ac5df368990c988d Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Sun, 16 Mar 2014 19:24:32 +0100
+Subject: [PATCH 2/4] Bind extract(), set_pathname() and read_open_memory()
+ (strings/bigarrays).
+
+extract() can be used to easily extract to disk.
+
+set_pathname makes it possible to change the name of the on-disk file when
+extracting.
+
+read_open_memory() reads an archive from memory, either strings or
+bigarrays.
+---
+ _oasis             |   2 +-
+ src/ArchiveLow.ml  |  33 ++++++++++++-
+ src/Archive_stub.c | 142 +++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 172 insertions(+), 5 deletions(-)
+
+diff --git a/_oasis b/_oasis
+index 3758ae6..8075120 100644
+--- a/_oasis
++++ b/_oasis
+@@ -30,7 +30,7 @@ Library "archive-ocaml"
+   CSources:   Archive_stub.c
+   CCLib:      -larchive
+   FindlibName: archive
+-  BuildDepends: unix, fileutils
++  BuildDepends: unix, fileutils, bigarray
+ 
+ Library "archive-lwt"
+   Build$:        flag(archivelwt)
+diff --git a/src/ArchiveLow.ml b/src/ArchiveLow.ml
+index d7dcd9e..3526a13 100644
+--- a/src/ArchiveLow.ml
++++ b/src/ArchiveLow.ml
+@@ -62,6 +62,9 @@ struct
+   external pathname: t -> filename =
+       "caml_archive_entry_pathname"
+ 
++  external set_pathname: t -> filename -> unit =
++      "caml_archive_entry_set_pathname"
++
+   external stat: t -> Unix.LargeFile.stats =
+       "caml_archive_entry_stat"
+ end
+@@ -69,7 +72,24 @@ end
+ module Read =
+ struct 
+   type t = [`Read] archive 
+-  
++  type flags =
++    | OWNER
++    | PERM
++    | TIME
++    | NO_OVERWRITE
++    | UNLINK
++    | ACL
++    | FFLAGS
++    | XATTR
++    | SECURE_SYMLINKS
++    | SECURE_NODOTDOT
++    | NO_AUTODIR
++    | NO_OVERWRITE_NEWER
++    | SPARSE
++    | MAC_METADATA
++    | NO_HFS_COMPRESSION
++    | HFS_COMPRESSION_FORCED
++
+   (** archive_read_new *)
+   external create: unit -> t = 
+       "caml_archive_read_create"
+@@ -86,6 +106,14 @@ struct
+   external open_filename: t -> filename -> int -> unit = 
+     "caml_archive_read_open_filename"
+ 
++  (** archive_read_open_memory *)
++  external open_string: t -> string -> unit =
++    "caml_archive_read_open_string"
++
++  (** archive_read_open_memory *)
++  external open_bigarray: t -> (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t -> unit =
++    "caml_archive_read_open_bigarray"
++
+   (** archive_read_open2 *)
+   external open2: 
+       t -> 
+@@ -108,4 +136,7 @@ struct
+   external close: t -> unit =
+     "caml_archive_read_close"
+ 
++  external extract: t -> Entry.t -> flags list -> unit =
++    "caml_archive_read_extract"
++
+ end
+diff --git a/src/Archive_stub.c b/src/Archive_stub.c
+index 5f38cf9..949192d 100644
+--- a/src/Archive_stub.c
++++ b/src/Archive_stub.c
+@@ -7,6 +7,7 @@
+ #include <caml/memory.h>
+ #include <caml/unixsupport.h>
+ #include <caml/threads.h>
++#include <caml/bigarray.h>
+ #include <assert.h>
+ #include <stdio.h>
+ #include <string.h>
+@@ -23,7 +24,71 @@
+ typedef struct archive *ptr_archive;
+ typedef struct archive_entry *ptr_archive_entry;
+ 
+-void caml_archive_check_error (int error, ptr_archive arch)
++#define OCAML_ARCHIVE_EXTRACT_OWNER                     0
++#define OCAML_ARCHIVE_EXTRACT_PERM                      1
++#define OCAML_ARCHIVE_EXTRACT_TIME                      2
++#define OCAML_ARCHIVE_EXTRACT_NO_OVERWRITE              3
++#define OCAML_ARCHIVE_EXTRACT_UNLINK                    4
++#define OCAML_ARCHIVE_EXTRACT_ACL                       5
++#define OCAML_ARCHIVE_EXTRACT_FFLAGS                    6
++#define OCAML_ARCHIVE_EXTRACT_XATTR                     7
++#define OCAML_ARCHIVE_EXTRACT_SECURE_SYMLINKS           8
++#define OCAML_ARCHIVE_EXTRACT_SECURE_NODOTDOT           9
++#define OCAML_ARCHIVE_EXTRACT_NO_AUTODIR               10
++#define OCAML_ARCHIVE_EXTRACT_NO_OVERWRITE_NEWER       11
++#define OCAML_ARCHIVE_EXTRACT_SPARSE                   12
++#define OCAML_ARCHIVE_EXTRACT_MAC_METADATA             13
++#define OCAML_ARCHIVE_EXTRACT_NO_HFS_COMPRESSION       14
++#define OCAML_ARCHIVE_EXTRACT_HFS_COMPRESSION_FORCED   15
++
++static int flag_matches[][2] = {
++    { ARCHIVE_EXTRACT_OWNER, OCAML_ARCHIVE_EXTRACT_OWNER },
++    { ARCHIVE_EXTRACT_PERM, OCAML_ARCHIVE_EXTRACT_PERM },
++    { ARCHIVE_EXTRACT_TIME, OCAML_ARCHIVE_EXTRACT_TIME },
++    { ARCHIVE_EXTRACT_NO_OVERWRITE, OCAML_ARCHIVE_EXTRACT_NO_OVERWRITE },
++    { ARCHIVE_EXTRACT_UNLINK, OCAML_ARCHIVE_EXTRACT_UNLINK },
++    { ARCHIVE_EXTRACT_ACL, OCAML_ARCHIVE_EXTRACT_ACL },
++    { ARCHIVE_EXTRACT_FFLAGS, OCAML_ARCHIVE_EXTRACT_FFLAGS },
++    { ARCHIVE_EXTRACT_XATTR, OCAML_ARCHIVE_EXTRACT_XATTR },
++    { ARCHIVE_EXTRACT_SECURE_SYMLINKS, OCAML_ARCHIVE_EXTRACT_SECURE_SYMLINKS },
++    { ARCHIVE_EXTRACT_SECURE_NODOTDOT, OCAML_ARCHIVE_EXTRACT_SECURE_NODOTDOT },
++    { ARCHIVE_EXTRACT_NO_AUTODIR, OCAML_ARCHIVE_EXTRACT_NO_AUTODIR },
++    { ARCHIVE_EXTRACT_NO_OVERWRITE_NEWER, OCAML_ARCHIVE_EXTRACT_NO_OVERWRITE_NEWER },
++    { ARCHIVE_EXTRACT_SPARSE, OCAML_ARCHIVE_EXTRACT_SPARSE },
++    { ARCHIVE_EXTRACT_MAC_METADATA, OCAML_ARCHIVE_EXTRACT_MAC_METADATA },
++    { ARCHIVE_EXTRACT_NO_HFS_COMPRESSION, OCAML_ARCHIVE_EXTRACT_NO_HFS_COMPRESSION },
++    { ARCHIVE_EXTRACT_HFS_COMPRESSION_FORCED, OCAML_ARCHIVE_EXTRACT_HFS_COMPRESSION_FORCED },
++};
++
++static int
++ArchiveFlag_val (value vflag)
++{
++  int i = Int_val(vflag);
++
++  if (i < sizeof(flag_matches)/sizeof(flag_matches[0])) {
++    return flag_matches[i][0];
++  }
++  else {
++    return -1;
++  }
++}
++
++static int
++ArchiveFlags_val (value vflags)
++{
++  CAMLparam1(vflags);
++  int flags = 0;
++
++  while (vflags != Val_emptylist) {
++    flags |= ArchiveFlag_val(Field(vflags, 0));
++    vflags = Field(vflags, 1);
++  }
++
++  CAMLreturn(flags);
++}
++
++static void
++caml_archive_check_error (int error, ptr_archive arch)
+ {
+   value args[2];
+ 
+@@ -50,7 +115,8 @@ void caml_archive_check_error (int error, ptr_archive arch)
+ 
+ #define Entry_val(v) ((ptr_archive_entry *) Data_custom_val(v))
+ 
+-void caml_archive_entry_finalize (value ventry)
++static void
++caml_archive_entry_finalize (value ventry)
+ {
+   ptr_archive_entry *ptr = Entry_val(ventry);
+   if (*ptr != NULL)
+@@ -111,6 +177,16 @@ CAMLprim value caml_archive_entry_pathname (value ventry)
+   CAMLreturn(vres);
+ }
+ 
++CAMLprim value
++caml_archive_entry_set_pathname (value ventry, value vpathname)
++{
++  CAMLparam2(ventry, vpathname);
++
++  archive_entry_set_pathname(*Entry_val(ventry), String_val(vpathname));
++
++  CAMLreturn(Val_unit);
++}
++
+ /* Copied from otherlibs/unix/stat.c */
+ static int file_kind_table[] = {
+   S_IFREG, S_IFDIR, S_IFCHR, S_IFBLK, S_IFLNK, S_IFIFO, S_IFSOCK
+@@ -225,7 +301,8 @@ CAMLprim value caml_archive_read_support_format_all (value vread)
+   CAMLreturn(Val_unit);
+ };
+ 
+-CAMLprim value caml_archive_read_open_filename (value vread, value vfn, value vblock_size)
++CAMLprim value
++caml_archive_read_open_filename (value vread, value vfn, value vblock_size)
+ {
+   ptr_archive *ptr = NULL;
+   int   res = ARCHIVE_OK;
+@@ -244,6 +321,41 @@ CAMLprim value caml_archive_read_open_filename (value vread, value vfn, value vb
+   CAMLreturn(Val_unit);
+ };
+ 
++CAMLprim value
++caml_archive_read_open_bigarray (value vread, value vba)
++{
++  ptr_archive *ptr = NULL;
++  int res = ARCHIVE_OK;
++  struct caml_ba_array *ba;
++  CAMLparam2(vread, vba);
++
++  ptr = Archive_val(vread);
++  ba = Caml_ba_array_val(vba);
++
++  caml_enter_blocking_section();
++  res = archive_read_open_memory(*ptr, ba->proxy->data, ba->proxy->size);
++  caml_leave_blocking_section();
++
++  caml_archive_check_error(res, *ptr);
++  CAMLreturn(Val_unit);
++}
++
++CAMLprim value caml_archive_read_open_string (value vread, value vs)
++{
++  ptr_archive *ptr = NULL;
++  int res = ARCHIVE_OK;
++  CAMLparam2(vread, vs);
++
++  ptr = Archive_val(vread);
++
++  caml_enter_blocking_section();
++  res = archive_read_open_memory(*ptr, String_val(vs), caml_string_length(vs));
++  caml_leave_blocking_section();
++
++  caml_archive_check_error(res, *ptr);
++  CAMLreturn(Val_unit);
++}
++
+ CAMLprim value caml_archive_read_next_header2 (value vread, value ventry)
+ {
+   int ret = 0;
+@@ -317,6 +429,30 @@ CAMLprim value caml_archive_read_data (value vread, value vstr, value voff, valu
+   CAMLreturn(Val_int(size));
+ };
+ 
++CAMLprim value
++caml_archive_read_extract (value vread, value ventry, value vflags)
++{
++  ptr_archive *ptr = NULL;
++  ptr_archive_entry *entry_ptr = NULL;
++  int flags, res;
++
++  CAMLparam3(vread, ventry, vflags);
++
++  ptr = Archive_val(vread);
++  entry_ptr = Entry_val(ventry);
++  flags = ArchiveFlags_val(vflags);
++
++  caml_enter_blocking_section();
++  res = archive_read_extract(*ptr, *entry_ptr, flags);
++  caml_leave_blocking_section();
++
++  if (res < 0) {
++    caml_archive_check_error(res, *ptr);
++  }
++
++  CAMLreturn(Val_unit);
++}
++
+ CAMLprim value caml_archive_read_close (value vread)
+ {
+   ptr_archive *ptr = NULL;
+-- 
+1.8.4
+

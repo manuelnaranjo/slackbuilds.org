@@ -1,0 +1,109 @@
+From f40c7150b2d9b94b81eb1ab535497bbaa6367d9d Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Fri, 21 Dec 2012 22:00:15 +0100
+Subject: [PATCH 06/34] configure: remove unused variables from case...in test.
+
+---
+ configure | 72 ++++++++++++++++++++++++++++++++-------------------------------
+ 1 file changed, 37 insertions(+), 35 deletions(-)
+
+diff --git a/configure b/configure
+index 3577c6b..ae110c7 100755
+--- a/configure
++++ b/configure
+@@ -746,55 +746,57 @@ esac
+ 
+ asppprofflags='-DPROFILING'
+ 
+-case "$arch,$model,$system" in
+-  amd64,*,macosx)   if ./searchpath clang; then
++case "$arch,$system" in
++  amd64,macosx)   if ./searchpath clang; then
+                       as='clang -arch x86_64 -c'
+                       aspp='clang -arch x86_64 -c'
+                     else
+                       as='as -arch x86_64'
+                       aspp='gcc -arch x86_64 -c'
+                     fi;;
+-  amd64,*,solaris)  as='as --64'
+-                    aspp='gcc -m64 -c';;
+-  amd64,*,*)        as='as'
+-                    aspp='gcc -c';;
+-  arm,*,*)          as='as';
+-                    aspp='gcc -c';;
+-  i386,*,solaris)   as='as'
+-                    aspp='/usr/ccs/bin/as -P';;
+-  i386,*,*)         as='as'
+-                    aspp='gcc -c';;
+-  power,*,elf)      as='as -u -m ppc'
+-                    aspp='gcc -c';;
+-  power,*,bsd)      as='as'
+-                    aspp='gcc -c';;
+-  power,*,rhapsody) as="as -arch $model"
+-                    aspp="$bytecc -c";;
+-  sparc,*,solaris)  as='as'
+-                    case "$cc" in
+-                      gcc*) aspp='gcc -c';;
+-                         *) aspp='as -P';;
+-                    esac;;
+-  sparc,*,*)        as='as'
+-                    aspp='gcc -c';;
++  amd64,macosx)   as='as -arch x86_64'
++                  aspp='gcc -arch x86_64 -c';;
++  amd64,solaris)  as='as --64'
++                  aspp='gcc -m64 -c';;
++  amd64,*)        as='as'
++                  aspp='gcc -c';;
++  arm,*)          as='as';
++                  aspp='gcc -c';;
++  i386,solaris)   as='as'
++                  aspp='/usr/ccs/bin/as -P';;
++  i386,*)         as='as'
++                  aspp='gcc -c';;
++  power,elf)      as='as -u -m ppc'
++                  aspp='gcc -c';;
++  power,bsd)      as='as'
++                  aspp='gcc -c';;
++  power,rhapsody) as="as -arch $model"
++                  aspp="$bytecc -c";;
++  sparc,solaris)  as='as'
++                  case "$cc" in
++                    gcc*) aspp='gcc -c';;
++                       *) aspp='as -P';;
++                  esac;;
++  sparc,*)        as='as'
++                  aspp='gcc -c';;
+ esac
+ 
+ if test -n "$asoption"; then as="$asoption"; fi
+ if test -n "$asppoption"; then aspp="$asppoption"; fi
+ 
+ cc_profile='-pg'
+-case "$arch,$model,$system" in
+-  i386,*,linux_elf) profiling='prof';;
+-  i386,*,gnu) profiling='prof';;
+-  i386,*,bsd_elf) profiling='prof';;
+-  amd64,*,macosx) profiling='prof';;
+-  i386,*,macosx) profiling='prof';;
+-  sparc,*,solaris)
++case "$arch,$system" in
++  i386,linux_elf) profiling='prof';;
++  i386,gnu) profiling='prof';;
++  i386,bsd_elf) profiling='prof';;
++  amd64,macosx) profiling='prof';;
++  i386,macosx) profiling='prof';;
++  sparc,solaris)
+     profiling='prof'
+     case "$nativecc" in gcc*) ;; *) cc_profile='-xpg';; esac;;
+-  amd64,*,linux) profiling='prof';;
+-  amd64,*,gnu) profiling='prof';;
+-  arm,*,linux*) profiling='prof';;
++  amd64,linux) profiling='prof';;
++  amd64,gnu) profiling='prof';;
++  arm,linux*) profiling='prof';;
+   *) profiling='noprof';;
+ esac
+ 
+-- 
+1.8.1.4
+

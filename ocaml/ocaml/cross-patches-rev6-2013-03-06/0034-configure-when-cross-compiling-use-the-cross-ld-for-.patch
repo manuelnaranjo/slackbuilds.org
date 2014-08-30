@@ -1,0 +1,25 @@
+From edcaab6985577bde58e32dfd13aab2c292b0151e Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Fri, 8 Mar 2013 22:14:37 +0100
+Subject: [PATCH 34/34] configure: when cross-compiling, use the cross ld for
+ $partialld.
+
+---
+ configure | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/configure b/configure
+index 93745a9..68a8928 100755
+--- a/configure
++++ b/configure
+@@ -841,6 +841,7 @@ case "$arch,$nativecc,$system,$target" in
+   amd64,gcc*,macosx,*) partialld="ld -r -arch x86_64";;
+   amd64,gcc*,solaris,*) partialld="ld -r -m elf_x86_64";;
+   *,gcc*,*,*)          nativecccompopts="$gcc_warnings";;
++  *,*gcc*,*,*)         partialld="${target}-ld -r";;
+ esac
+ 
+ asppprofflags='-DPROFILING'
+-- 
+1.8.1.4
+

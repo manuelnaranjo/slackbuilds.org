@@ -1,0 +1,24 @@
+From 3db4067303dd87619e1da4788ea7cbc6099261d5 Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Sat, 15 Dec 2012 10:04:21 +0100
+Subject: [PATCH 26/34] .gitignore: ignore vim temp files and .cm* stuff.
+
+---
+ .gitignore | 5 +++++
+ 1 file changed, 5 insertions(+)
+ create mode 100644 .gitignore
+
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..a7cdaf8
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,5 @@
++.*.swp
++*~
++*.cm[ioax]
++*.cmx[as]
++*.[oa]
+-- 
+1.8.1.4
+

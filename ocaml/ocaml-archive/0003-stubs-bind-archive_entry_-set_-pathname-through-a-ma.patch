@@ -1,0 +1,66 @@
+From cf0ff417b07cd9e015b2d3e4c1d1c2d6dc7f8365 Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Wed, 19 Mar 2014 17:28:29 +0100
+Subject: [PATCH 3/4] stubs: bind archive_entry_(set_)pathname through a macro.
+
+All the getters and setters below archive_entry are similar. A macro makes
+it easy to share the implementation of their bindings.
+---
+ src/Archive_stub.c | 39 +++++++++++++++++++++------------------
+ 1 file changed, 21 insertions(+), 18 deletions(-)
+
+diff --git a/src/Archive_stub.c b/src/Archive_stub.c
+index 949192d..7665439 100644
+--- a/src/Archive_stub.c
++++ b/src/Archive_stub.c
+@@ -166,26 +166,29 @@ CAMLprim value caml_archive_entry_clone (value ventry)
+   CAMLreturn(vres);
+ }
+ 
+-CAMLprim value caml_archive_entry_pathname (value ventry)
+-{
+-  CAMLparam1(ventry);
+-  CAMLlocal1(vres);
+-  /* TODO: check for null string */
+-  vres = 
+-    caml_copy_string(
+-      archive_entry_pathname(*Entry_val(ventry)));
+-  CAMLreturn(vres);
+-}
+-
+-CAMLprim value
+-caml_archive_entry_set_pathname (value ventry, value vpathname)
+-{
+-  CAMLparam2(ventry, vpathname);
++#define ARCHIVE_ENTRY_FIELD_GET(field) \
++  CAMLprim value \
++  caml_archive_entry_ ## field (value ventry) \
++  { \
++    CAMLparam1(ventry); \
++    CAMLlocal1(vres); \
++    /* TODO: check for null string */ \
++    vres = caml_copy_string( \
++        archive_entry_ ## field (*Entry_val(ventry))); \
++    CAMLreturn(vres); \
++  }
+ 
+-  archive_entry_set_pathname(*Entry_val(ventry), String_val(vpathname));
++#define ARCHIVE_ENTRY_FIELD_SET(field) \
++  CAMLprim value \
++  caml_archive_entry_set_ ## field (value ventry, value vvalue) \
++  { \
++    CAMLparam2(ventry, vvalue); \
++    archive_entry_set_ ## field (*Entry_val(ventry), String_val(vvalue)); \
++    CAMLreturn(Val_unit); \
++  }
+ 
+-  CAMLreturn(Val_unit);
+-}
++ARCHIVE_ENTRY_FIELD_GET(pathname)
++ARCHIVE_ENTRY_FIELD_SET(pathname)
+ 
+ /* Copied from otherlibs/unix/stat.c */
+ static int file_kind_table[] = {
+-- 
+1.8.4
+

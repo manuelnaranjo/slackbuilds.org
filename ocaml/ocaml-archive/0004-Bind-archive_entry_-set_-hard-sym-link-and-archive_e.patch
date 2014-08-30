@@ -1,0 +1,103 @@
+From e976c272685167504eb7922deac7570883d20056 Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Wed, 19 Mar 2014 18:19:48 +0100
+Subject: [PATCH 4/4] Bind archive_entry_{set_,}{hard,sym}link and
+ archive_entry_set_link.
+
+These are bound like other similar functions.
+
+The binding code has been simplified a bit because the CAMLparam/localN()
+were not needed.
+
+The code also raises an exception when the char* returned by the getter is
+NULL. Unfortunately this isn't documented in libarchive and I can only
+guess what the actual error is.
+
+Unfortunately-squared, it seems it is fairly common to have such errors and
+this means try...catch almost everywhere. It might make sense to return
+a string option rather than a string for the hardlink and symlink getters
+(the ones that can raise the exception, when the stored file wasn't a
+hardlink or a symlink).
+---
+ src/ArchiveLow.ml  | 15 +++++++++++++++
+ src/Archive_stub.c | 26 ++++++++++++++++++--------
+ 2 files changed, 33 insertions(+), 8 deletions(-)
+
+diff --git a/src/ArchiveLow.ml b/src/ArchiveLow.ml
+index 3526a13..34170b1 100644
+--- a/src/ArchiveLow.ml
++++ b/src/ArchiveLow.ml
+@@ -65,6 +65,21 @@ struct
+   external set_pathname: t -> filename -> unit =
+       "caml_archive_entry_set_pathname"
+ 
++  external hardlink: t -> filename =
++      "caml_archive_entry_hardlink"
++
++  external set_hardlink: t -> filename -> unit =
++      "caml_archive_entry_set_hardlink"
++
++  external set_link: t -> filename -> unit =
++      "caml_archive_entry_set_link"
++
++  external symlink: t -> filename =
++      "caml_archive_entry_symlink"
++
++  external set_symlink: t -> filename -> unit =
++      "caml_archive_entry_set_symlink"
++
+   external stat: t -> Unix.LargeFile.stats =
+       "caml_archive_entry_stat"
+ end
+diff --git a/src/Archive_stub.c b/src/Archive_stub.c
+index 7665439..919f02e 100644
+--- a/src/Archive_stub.c
++++ b/src/Archive_stub.c
+@@ -170,26 +170,36 @@ CAMLprim value caml_archive_entry_clone (value ventry)
+   CAMLprim value \
+   caml_archive_entry_ ## field (value ventry) \
+   { \
+-    CAMLparam1(ventry); \
+-    CAMLlocal1(vres); \
+-    /* TODO: check for null string */ \
+-    vres = caml_copy_string( \
+-        archive_entry_ ## field (*Entry_val(ventry))); \
+-    CAMLreturn(vres); \
++    char *res; \
++    res = archive_entry_ ## field (*Entry_val(ventry)); \
++    if (res == NULL) { \
++      caml_failwith("Field not set."); \
++    } \
++    else { \
++      return caml_copy_string(res); \
++    } \
+   }
+ 
+ #define ARCHIVE_ENTRY_FIELD_SET(field) \
+   CAMLprim value \
+   caml_archive_entry_set_ ## field (value ventry, value vvalue) \
+   { \
+-    CAMLparam2(ventry, vvalue); \
+     archive_entry_set_ ## field (*Entry_val(ventry), String_val(vvalue)); \
+-    CAMLreturn(Val_unit); \
++    return Val_unit; \
+   }
+ 
+ ARCHIVE_ENTRY_FIELD_GET(pathname)
+ ARCHIVE_ENTRY_FIELD_SET(pathname)
+ 
++ARCHIVE_ENTRY_FIELD_GET(hardlink)
++ARCHIVE_ENTRY_FIELD_SET(hardlink)
++
++ARCHIVE_ENTRY_FIELD_GET(symlink)
++ARCHIVE_ENTRY_FIELD_SET(symlink)
++
++/* No getter for link */
++ARCHIVE_ENTRY_FIELD_SET(link)
++
+ /* Copied from otherlibs/unix/stat.c */
+ static int file_kind_table[] = {
+   S_IFREG, S_IFDIR, S_IFCHR, S_IFBLK, S_IFLNK, S_IFIFO, S_IFSOCK
+-- 
+1.8.4
+

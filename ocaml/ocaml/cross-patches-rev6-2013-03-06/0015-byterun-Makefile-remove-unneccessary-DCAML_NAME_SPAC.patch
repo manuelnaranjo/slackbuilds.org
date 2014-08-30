@@ -1,0 +1,28 @@
+From 9bded808f1feb3923e223df01ad2446f8f82760c Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Sun, 6 Jan 2013 12:53:09 +0100
+Subject: [PATCH 15/34] byterun/Makefile: remove unneccessary -DCAML_NAME_SPACE
+ in compile flags
+
+---
+ byterun/Makefile | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/byterun/Makefile b/byterun/Makefile
+index 9ac7569..f94eff5 100644
+--- a/byterun/Makefile
++++ b/byterun/Makefile
+@@ -13,8 +13,8 @@
+ 
+ include Makefile.common
+ 
+-CFLAGS=-DCAML_NAME_SPACE -O $(BYTECCCOMPOPTS) $(IFLEXDIR)
+-DFLAGS=-DCAML_NAME_SPACE -g -DDEBUG $(BYTECCCOMPOPTS) $(IFLEXDIR)
++CFLAGS=-O $(BYTECCCOMPOPTS) $(IFLEXDIR)
++DFLAGS=-g -DDEBUG $(BYTECCCOMPOPTS) $(IFLEXDIR)
+ 
+ ifeq ($(SYSTEM),mingw)
+ OBJS=$(COMMONOBJS) win32.o main.o
+-- 
+1.8.1.4
+

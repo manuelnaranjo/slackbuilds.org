@@ -1,0 +1,109 @@
+#!/bin/sh
+
+# Slackware build script for findlib
+# Copyright 2011 David Woodfall <dave@dawoodfall.net>
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ''AS IS'' AND ANY EXPRESS OR IMPLIED
+# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+# EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+# OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+# OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+# ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+PRGNAM=ocaml-findlib
+VERSION=${VERSION:-1.2.7}
+BUILD=${BUILD:-1}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp/SBo}
+PKG=$TMP/package-$PRGNAM
+OUTPUT=${OUTPUT:-/tmp}
+
+set -e
+
+rm -rf $PKG
+mkdir -p $TMP $PKG $OUTPUT
+cd $TMP
+rm -rf findlib-$VERSION
+tar xvf $CWD/findlib-$VERSION.tar.gz
+cd findlib-$VERSION
+chown -R root:root .
+find . \
+ \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+ -exec chmod 755 {} \; -o \
+ \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+ -exec chmod 644 {} \;
+
+if [ x"${TARGET_TRIPLET}" != x"${HOST_TRIPLET}" ] || [ x"${BUILD_TRIPLET}" != x"${HOST_TRIPLET}" ]; then 
+  TOPFIND="-no-topfind" 
+else 
+  TOPFIND=""
+fi
+
+./configure \
+  -bindir  /${PREFIX}/bin \
+  -mandir  /${PREFIX}/man \
+  -sitelib /${PREFIX}/lib$LIBDIRSUFFIX_TGT/ocaml/site-lib \
+  ${TOPFIND} \
+  -config  /${PREFIX}/etc/findlib.conf
+
+#! PATCH: disable bytes compatibility which doesn't install in the right
+#         location
+sed -i 's/PARTS=findlib bytes/PARTS=findlib/' Makefile.config
+
+make all opt
+make install prefix=$PKG
+
+sed \
+  -e 's;${PREFIX};'"${PREFIX}"';g' \
+  -e 's;${LIBDIRSUFFIX_TGT};'"${LIBDIRSUFFIX_TGT}"';g' \
+  ${CWD}/findlib.conf.in \
+  > ${PKG}/${PREFIX}/etc/findlib.conf
+
+mkdir -p $PKG/${PREFIX}/lib$LIBDIRSUFFIX_TGT/ocaml/site-lib/stublibs
+
+# If ld.conf doesn't exist, create it along with the corresponding directories.
+# It is usually provided by the OCaml compiler itself but there is none for the
+# windows series and findlib wants one.
+LD_CONF="/${PREFIX}/lib${LIBDIRSUFFIX}/ocaml/ld.conf"
+if [ ! -e "${LD_CONF}" ]; then
+  cat > "${PKG}${LD_CONF}" << EOF
+/${PREFIX}/lib${LIBDIRSUFFIX}/ocaml/stublibs
+/${PREFIX}/lib${LIBDIRSUFFIX}/ocaml
+EOF
+  mkdir -p "/${PREFIX}/lib${LIBDIRSUFFIX}/ocaml/stublibs"
+fi
+
+find $PKG | xargs file | egrep -e "executable|shared object" \
+  | grep ${HOST_EXE_FORMAT} | cut -f 1 -d : \
+  | xargs ${HOST_STRIP} --strip-unneeded 2> /dev/null || true
+
+find $PKG/${PREFIX}/man -type f -exec gzip -9 {} \;
+for i in $( find $PKG/${PREFIX}/man -type l ) ; do ln -s $( readlink $i ).gz $i.gz ; rm $i ; done
+
+mkdir -p $PKG/${PREFIX}/doc/$PRGNAM-$VERSION
+cp -a \
+   INSTALL LICENSE doc \
+  $PKG/${PREFIX}/doc/$PRGNAM-$VERSION
+cat $CWD/$PRGNAM.SlackBuild > $PKG/${PREFIX}/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
+
+cat ${CWD}/${PRGNAM}.yypkg.script | sed \
+  -e "s/%{PKG}/${PRGNAM}/" \
+  -e "s/%{HST}/${HOST_TRIPLET}/" \
+  -e "s/%{TGT}/${TARGET_TRIPLET}/" \
+  -e "s/%{VER}/${VERSION}/" \
+  -e "s/%{BUILD}/${BUILD}/" \
+  -e "s/%{DESCR}/${DESCR:-"No description"}/" \
+  | yypkg --makepkg --output ${YYOUTPUT} --script - --directory "${PKG}/${PREFIX}"
+

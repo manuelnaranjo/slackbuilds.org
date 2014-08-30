@@ -1,0 +1,551 @@
+From 7b6db43abdfee475b907983023d545bae4e2f3c6 Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Mon, 7 Jan 2013 21:37:54 +0100
+Subject: [PATCH 20/34] build: use configure-defined variables for paths to
+ most caml binaries.
+
+---
+ Makefile                   | 19 ++++++++-----------
+ configure                  | 35 ++++++++++++++++++++++++++++-------
+ debugger/Makefile.shared   |  9 +++------
+ lex/Makefile               | 15 +++++++--------
+ myocamlbuild.ml            | 19 +++----------------
+ ocamlbuild/Makefile.noboot | 13 +++++--------
+ ocamldoc/Makefile          | 30 +++++++++++++++---------------
+ otherlibs/Makefile.shared  | 15 +++++++--------
+ otherlibs/dynlink/Makefile |  2 +-
+ stdlib/Makefile.shared     |  7 +++----
+ tools/Makefile.shared      | 12 +++++-------
+ 11 files changed, 85 insertions(+), 91 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 84a6b11..d576d22 100644
+--- a/Makefile
++++ b/Makefile
+@@ -15,15 +15,12 @@
+ include config/Makefile
+ include stdlib/StdlibModules
+ 
+-CAMLC=$(CAMLRUN) boot/ocamlc -nostdlib -I boot
+-CAMLOPT=$(CAMLRUN) ./ocamlopt -nostdlib -I stdlib -I otherlibs/dynlink
++CAMLC=$(CAMLC_BIN) -nostdlib -I boot
++CAMLOPT=$(CAMLOPT_BIN) -nostdlib -I stdlib -I otherlibs/dynlink
+ COMPFLAGS=-strict-sequence -w +33..39 -warn-error A $(INCLUDES)
+ LINKFLAGS=
+ 
+-CAMLYACC=boot/ocamlyacc
+ YACCFLAGS=-v
+-CAMLLEX=$(CAMLRUN) boot/ocamllex
+-CAMLDEP=$(CAMLRUN) tools/ocamldep
+ DEPFLAGS=$(INCLUDES)
+ SHELL=/bin/sh
+ MKDIR=mkdir -p
+@@ -346,7 +343,7 @@ partialclean::
+ ocamlc: compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma $(BYTESTART)
+ 	$(CAMLC) $(LINKFLAGS) -o ocamlc \
+ 		compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma $(BYTESTART)
+-	@sed -e 's|@compiler@|$(CAMLRUN) $(ROOTDIR)/ocamlc|' \
++	@sed -e 's|@compiler@|$(CAMLC_BIN)|' \
+ 	  driver/ocamlcomp.sh.in > ocamlcomp.sh
+ 	@chmod +x ocamlcomp.sh
+ 
+@@ -360,7 +357,7 @@ partialclean::
+ ocamlopt: compilerlibs/ocamlcommon.cma compilerlibs/ocamloptcomp.cma $(OPTSTART)
+ 	$(CAMLC) $(LINKFLAGS) -o ocamlopt \
+ 		compilerlibs/ocamlcommon.cma compilerlibs/ocamloptcomp.cma $(OPTSTART)
+-	@sed -e 's|@compiler@|$(CAMLRUN) $(ROOTDIR)/ocamlopt|' \
++	@sed -e 's|@compiler@|$(CAMLOPT_BIN)|' \
+ 	  driver/ocamlcomp.sh.in > ocamlcompopt.sh
+ 	@chmod +x ocamlcompopt.sh
+ 
+@@ -436,7 +433,7 @@ beforedepend:: utils/config.ml
+ # The parser
+ 
+ parsing/parser.mli parsing/parser.ml: parsing/parser.mly
+-	$(CAMLYACC) $(YACCFLAGS) parsing/parser.mly
++	$(CAMLYACC_BIN) $(YACCFLAGS) parsing/parser.mly
+ 
+ partialclean::
+ 	rm -f parsing/parser.mli parsing/parser.ml parsing/parser.output
+@@ -446,7 +443,7 @@ beforedepend:: parsing/parser.mli parsing/parser.ml
+ # The lexer
+ 
+ parsing/lexer.ml: parsing/lexer.mll
+-	$(CAMLLEX) parsing/lexer.mll
++	$(CAMLLEX_BIN) parsing/lexer.mll
+ 
+ partialclean::
+ 	rm -f parsing/lexer.ml
+@@ -583,7 +580,7 @@ beforedepend:: asmcomp/emit.ml
+ 
+ tools/cvt_emit: tools/cvt_emit.mll
+ 	cd tools; \
+-	$(MAKE) CAMLC="../$(CAMLRUN) ../boot/ocamlc -I ../stdlib" cvt_emit
++	$(MAKE) CAMLC="$(CAMLC) -I ../stdlib" cvt_emit
+ 
+ # The "expunge" utility
+ 
+@@ -800,7 +797,7 @@ partialclean::
+ 
+ depend: beforedepend
+ 	(for d in utils parsing typing bytecomp asmcomp driver toplevel; \
+-	 do $(CAMLDEP) $(DEPFLAGS) $$d/*.mli $$d/*.ml; \
++	 do $(CAMLDEP_BIN) $(DEPFLAGS) $$d/*.mli $$d/*.ml; \
+ 	 done) > .depend
+ 
+ alldepend:: depend
+diff --git a/configure b/configure
+index a4bf5b8..143e978 100755
+--- a/configure
++++ b/configure
+@@ -1727,23 +1727,44 @@ if test x"$target" != x"$host"; then
+     else
+       camlrun="ocamlrun"
+       # Assert the host's ocamldoc supports shared libraries
+-      ocamldoc="ocamlrun ocamldoc"
++      ocamldoc="ocamldoc"
++      camlyacc="ocamlyacc"
++      camllex="ocamllex"
++      camldep="ocamldep"
++      camlc_host="ocamlc"
++      camlopt_host="ocamlopt"
++      camlmklib="$camlrun $rootdir/tools/ocamlmklib"
++      camlc_target="$camlrun $rootdir/ocamlc"
++      camlopt_target="$camlrun $rootdir/ocamlopt"
+     fi
+   fi
+ else
+-  camlrun=$rootdir/boot/ocamlrun
++  camlrun="$rootdir/boot/ocamlrun"
++  camlyacc="$rootdir/boot/ocamlyacc"
++  camllex="$camlrun $rootdir/boot/ocamllex"
++  camldep="$camlrun $rootdir/tools/ocamldep"
++  camlc_host="$camlrun $rootdir/boot/ocamlc"
++  camlopt_host="$camlrun $rootdir/ocamlopt"
++  camlmklib="$camlrun $rootdir/tools/ocamlmklib"
++  camlc_target="$camlc_host"
++  camlopt_target="$camlopt_host"
+   if $shared_libraries_supported; then
+-    ocamldoc="\$(CAMLRUN) -I $rootdir/otherlibs/$unixlib -I $rootdir/otherlibs/str $rootdir/ocamldoc/ocamldoc"
++    ocamldoc="$camlrun -I $rootdir/otherlibs/$unixlib -I $rootdir/otherlibs/str $rootdir/ocamldoc/ocamldoc"
+   else
+     ocamldoc="$rootdir/ocamldoc/ocamldoc"
+   fi
+ fi
+ 
+ cat >> Makefile << EOF
+-ROOTDIR=$rootdir
+-CAMLRUN=$camlrun
+-OCAMLRUN=\$(CAMLRUN)
+-OCAMLDOC=$ocamldoc
++OCAMLDOC_BIN=$ocamldoc
++CAMLYACC_BIN=$camlyacc
++CAMLLEX_BIN=$camllex
++CAMLDEP_BIN=$camldep
++CAMLC_HOST_BIN=$camlc_host
++CAMLOPT_HOST_BIN=$camlopt_host
++CAMLMKLIB_BIN=$camlmklib
++CAMLC_TARGET_BIN=$camlc_target -nostdlib -I $rootdir/stdlib
++CAMLOPT_TARGET_BIN=$camlopt_target -nostdlib -I $rootdir/stdlib
+ EOF
+ 
+ # Finish generated files
+diff --git a/debugger/Makefile.shared b/debugger/Makefile.shared
+index ac982ca..df62723 100644
+--- a/debugger/Makefile.shared
++++ b/debugger/Makefile.shared
+@@ -15,10 +15,7 @@ include ../config/Makefile
+ CAMLC=../ocamlcomp.sh
+ COMPFLAGS=-g -warn-error A $(INCLUDES)
+ LINKFLAGS=-g -linkall -I $(UNIXDIR)
+-CAMLYACC=../boot/ocamlyacc
+ YACCFLAGS=
+-CAMLLEX=../boot/ocamlrun ../boot/ocamllex
+-CAMLDEP=../boot/ocamlrun ../tools/ocamldep
+ DEPFLAGS=$(INCLUDES)
+ 
+ INCLUDES=\
+@@ -97,17 +94,17 @@ clean::
+ 	$(CAMLC) -c $(COMPFLAGS) $<
+ 
+ depend: beforedepend
+-	$(CAMLDEP) $(DEPFLAGS) *.mli *.ml \
++	$(CAMLDEP_BIN) $(DEPFLAGS) *.mli *.ml \
+ 	| sed -e 's,$(UNIXDIR)/,$$(UNIXDIR)/,' > .depend
+ 
+ lexer.ml: lexer.mll
+-	$(CAMLLEX) lexer.mll
++	$(CAMLLEX_BIN) lexer.mll
+ clean::
+ 	rm -f lexer.ml
+ beforedepend:: lexer.ml
+ 
+ parser.ml parser.mli: parser.mly
+-	$(CAMLYACC) parser.mly
++	$(CAMLYACC_BIN) parser.mly
+ clean::
+ 	rm -f parser.ml parser.mli
+ beforedepend:: parser.ml parser.mli
+diff --git a/lex/Makefile b/lex/Makefile
+index 00e5c9f..de09227 100644
+--- a/lex/Makefile
++++ b/lex/Makefile
+@@ -10,14 +10,13 @@
+ #                                                                       #
+ #########################################################################
+ 
++include ../config/Makefile
++
+ # The lexer generator
+-CAMLC=../boot/ocamlrun ../boot/ocamlc -strict-sequence -nostdlib -I ../boot
+-CAMLOPT=../boot/ocamlrun ../ocamlopt -nostdlib -I ../stdlib
++CAMLC=$(CAMLC_BIN) -strict-sequence -nostdlib -I ../boot
++CAMLOPT=$(CAMLOPT_BIN) -nostdlib -I ../stdlib
+ COMPFLAGS=-w +33..39 -warn-error A
+-CAMLYACC=../boot/ocamlyacc
+ YACCFLAGS=-v
+-CAMLLEX=../boot/ocamlrun ../boot/ocamllex
+-CAMLDEP=../boot/ocamlrun ../tools/ocamldep
+ 
+ 
+ OBJS=cset.cmo syntax.cmo parser.cmo lexer.cmo table.cmo lexgen.cmo compact.cmo common.cmo output.cmo outputbis.cmo main.cmo
+@@ -36,7 +35,7 @@ clean::
+ 	rm -f *.cmo *.cmi *.cmx *.o *~
+ 
+ parser.ml parser.mli: parser.mly
+-	$(CAMLYACC) $(YACCFLAGS) parser.mly
++	$(CAMLYACC_BIN) $(YACCFLAGS) parser.mly
+ 
+ clean::
+ 	rm -f parser.ml parser.mli parser.output
+@@ -44,7 +43,7 @@ clean::
+ beforedepend:: parser.ml parser.mli
+ 
+ lexer.ml: lexer.mll
+-	$(CAMLLEX) lexer.mll
++	$(CAMLLEX_BIN) lexer.mll
+ 
+ clean::
+ 	rm -f lexer.ml
+@@ -64,6 +63,6 @@ beforedepend:: lexer.ml
+ 	$(CAMLOPT) -c $(COMPFLAGS) $<
+ 
+ depend: beforedepend
+-	$(CAMLDEP) *.mli *.ml > .depend
++	$(CAMLDEP_BIN) *.mli *.ml > .depend
+ 
+ include .depend
+diff --git a/myocamlbuild.ml b/myocamlbuild.ml
+index 285b4d4..bd2bc71 100644
+--- a/myocamlbuild.ml
++++ b/myocamlbuild.ml
+@@ -121,27 +121,14 @@ let systhreads_obj f = "otherlibs/systhreads"/f-.-C.o
+ let systhreads_lib f = "otherlibs/systhreads"/f-.-C.a
+ let systhreads_dll f = "otherlibs/systhreads"/f-.-C.so
+ 
+-let ocamlc_solver =
+-  let native_deps = ["ocamlc.opt"; "stdlib/stdlib.cmxa";
+-                    "stdlib/std_exit.cmx"; "stdlib/std_exit"-.-C.o] in
+-  let byte_deps = ["ocamlc"; "stdlib/stdlib.cma"; "stdlib/std_exit.cmo"] in
+-  fun () ->
+-    if Pathname.exists "../ocamlcomp.sh" then S[A"../ocamlcomp.sh"] else
+-    if List.for_all Pathname.exists native_deps then
+-      S[A"./ocamlc.opt"; A"-nostdlib"]
+-    else if List.for_all Pathname.exists byte_deps then
+-      S[ocamlrun; A"./ocamlc"; A"-nostdlib"]
+-    else boot_ocamlc;;
++let ocamlc_solver () =
++  C.camlc_host_bin;;
+ 
+ Command.setup_virtual_command_solver "OCAMLC" ocamlc_solver;;
+ Command.setup_virtual_command_solver "OCAMLCWIN" (convert_for_windows_shell ocamlc_solver);;
+ 
+ let ocamlopt_solver () =
+-  S[if Pathname.exists "../ocamlcompopt.sh" then S[A"../ocamlcompopt.sh"] else
+-    if Pathname.exists "ocamlopt.opt" && Pathname.exists ("stdlib/stdlib.cmxa")
+-    then A"./ocamlopt.opt"
+-    else S[ocamlrun; A"./ocamlopt"];
+-    A"-nostdlib"];;
++  C.camlopt_host_bin;;
+ 
+ Command.setup_virtual_command_solver "OCAMLOPT" ocamlopt_solver;;
+ Command.setup_virtual_command_solver "OCAMLOPTWIN" (convert_for_windows_shell ocamlopt_solver);;
+diff --git a/ocamlbuild/Makefile.noboot b/ocamlbuild/Makefile.noboot
+index 0679e0c..503f000 100644
+--- a/ocamlbuild/Makefile.noboot
++++ b/ocamlbuild/Makefile.noboot
+@@ -17,11 +17,8 @@ include ../config/Makefile
+ 
+ # Various commands and dir
+ ##########################
+-CAMLRUN  = ../boot/ocamlrun
+ OCAMLC   = ../ocamlcomp.sh
+ OCAMLOPT = ../ocamlcompopt.sh
+-OCAMLDEP = $(CAMLRUN) ../tools/ocamldep
+-OCAMLLEX = $(CAMLRUN) ../boot/ocamllex
+ OCAMLLIB = $(LIBDIR)
+ OCAMLBIN = $(BINDIR)
+ 
+@@ -147,7 +144,7 @@ $(OCAMLBUILD)_pack.cmx: $(EXECMXFILES_PACK)
+ 	$(OCAMLOPT) -pack -o $@ $(LINKFLAGS) $(OCAMLCMOFILES_PACK) $(EXECMXFILES_PACK)
+ 
+ $(OCAMLBUILD): $(OCAMLBUILD)_pack.cmo $(CMOFILES) $(OCAMLBUILD).cmo $(BASE_CMOFILES)
+-	$(OCAMLC) -o $@ unix.cma $(LINKFLAGS) $(OCAMLBUILD)_pack.cmo $(CMOFILES)
++	$(OCAMLC) -o $@ $(LINKFLAGS) $(OCAMLBUILD)_pack.cmo $(CMOFILES)
+ 
+ $(OCAMLBUILD).native: $(OCAMLBUILD)_pack.cmx $(CMXFILES)
+ 	$(OCAMLOPT) -o $@  $(LINKFLAGS) $(CMXFILES)
+@@ -175,13 +172,13 @@ $(OCAMLBUILD_LIBCMXA): $(LIBCMXFILES)
+ 	$(OCAMLOPT) -shared -o $@ $(OCAMLPP) $(COMPFLAGS) $<
+ 
+ .mll.ml:
+-	$(OCAMLLEX) $<
++	$(CAMLLEX_BIN) $<
+ 
+ .mly.ml:
+-	$(OCAMLYACC) -v $<
++	$(OCAMLYACC_BIN) -v $<
+ 
+ .mly.mli:
+-	$(OCAMLYACC) -v $<
++	$(OCAMLYACC_BIN) -v $<
+ 
+ # Installation targets
+ ######################
+@@ -212,7 +209,7 @@ clean:: dummy
+ 	@rm -f glob_lexer.ml lexers.ml
+ 
+ depend::
+-	$(OCAMLDEP) $(INCLUDES_DEP) *.mli *.mll *.mly *.ml > .depend
++	$(CAMLDEP_BIN) $(INCLUDES_DEP) *.mli *.mll *.mly *.ml > .depend
+ 
+ dummy:
+ 
+diff --git a/ocamldoc/Makefile b/ocamldoc/Makefile
+index f78a4ff..1aeb36f 100644
+--- a/ocamldoc/Makefile
++++ b/ocamldoc/Makefile
+@@ -16,9 +16,9 @@ include ../config/Makefile
+ ##########################
+ OCAMLC   = ../ocamlcomp.sh
+ OCAMLOPT = ../ocamlcompopt.sh
+-OCAMLDEP = $(CAMLRUN) ../tools/ocamldep
+-OCAMLLEX = $(CAMLRUN) ../boot/ocamllex
+-OCAMLYACC= ../boot/ocamlyacc
++OCAMLDEP = $(CAMLDEP_BIN)
++OCAMLLEX = $(CAMLLEX_BIN)
++OCAMLYACC= $(CAMLYACC_BIN)
+ OCAMLLIB = $(LIBDIR)
+ OCAMLBIN = $(BINDIR)
+ 
+@@ -221,7 +221,7 @@ $(OCAMLDOC_LIBCMXA): $(LIBCMXFILES)
+ manpages: stdlib_man/Pervasives.3o
+ 
+ dot: $(EXECMOFILES)
+-	$(OCAMLDOC) -dot -dot-reduce -o ocamldoc.dot $(INCLUDES) odoc*.ml
++	$(OCAMLDOC_BIN) -dot -dot-reduce -o ocamldoc.dot $(INCLUDES) odoc*.ml
+ 
+ # Parsers and lexers dependencies :
+ ###################################
+@@ -292,37 +292,37 @@ installopt_really:
+ ###########
+ test: dummy
+ 	$(MKDIR) $@
+-	$(OCAMLDOC) -html -colorize-code -sort -d $@ $(INCLUDES) -dump $@/ocamldoc.odoc odoc*.ml odoc*.mli -v
++	$(OCAMLDOC_BIN) -html -colorize-code -sort -d $@ $(INCLUDES) -dump $@/ocamldoc.odoc odoc*.ml odoc*.mli -v
+ 	$(MKDIR) $@-custom
+-	$(OCAMLDOC) -colorize-code -sort -d $@-custom $(INCLUDES) \
++	$(OCAMLDOC_BIN) -colorize-code -sort -d $@-custom $(INCLUDES) \
+ 	-g generators/odoc_literate.cmo -g generators/odoc_todo.cmo \
+ 	-load $@/ocamldoc.odoc -v
+ 
+ test_stdlib: dummy
+ 	$(MKDIR) $@
+-	$(OCAMLDOC) -html -colorize-code -sort -d $@ $(INCLUDES) -dump $@/stdlib.odoc -keep-code \
++	$(OCAMLDOC_BIN) -html -colorize-code -sort -d $@ $(INCLUDES) -dump $@/stdlib.odoc -keep-code \
+ 	../stdlib/pervasives.ml ../stdlib/*.mli \
+ 	../otherlibs/$(UNIXLIB)/unix.mli \
+ 	../otherlibs/str/str.mli
+ 
+ test_stdlib_code: dummy
+ 	$(MKDIR) $@
+-	$(OCAMLDOC) -html -colorize-code -sort -d $@ $(INCLUDES) -dump $@/stdlib.odoc -keep-code \
++	$(OCAMLDOC_BIN) -html -colorize-code -sort -d $@ $(INCLUDES) -dump $@/stdlib.odoc -keep-code \
+ 	`ls ../stdlib/*.ml | grep -v Labels` \
+ 	../otherlibs/$(UNIXLIB)/unix.ml \
+ 	../otherlibs/str/str.ml
+ 
+ test_framed: dummy
+ 	$(MKDIR) $@
+-	$(OCAMLDOC) -g odoc_fhtml.cmo -sort -colorize-code -d $@ $(INCLUDES) odoc*.ml odoc*.mli
++	$(OCAMLDOC_BIN) -g odoc_fhtml.cmo -sort -colorize-code -d $@ $(INCLUDES) odoc*.ml odoc*.mli
+ 
+ test_latex: dummy
+ 	$(MKDIR) $@
+-	$(OCAMLDOC) -latex -sort -o $@/test.tex -d $@ $(INCLUDES) odoc*.ml odoc*.mli test2.txt ../stdlib/*.mli ../otherlibs/unix/unix.mli
++	$(OCAMLDOC_BIN) -latex -sort -o $@/test.tex -d $@ $(INCLUDES) odoc*.ml odoc*.mli test2.txt ../stdlib/*.mli ../otherlibs/$(UNIXLIB)/unix.mli
+ 
+ test_latex_simple: dummy
+ 	$(MKDIR) $@
+-	$(OCAMLDOC) -latex -sort -o $@/test.tex -d $@ $(INCLUDES) \
++	$(OCAMLDOC_BIN) -latex -sort -o $@/test.tex -d $@ $(INCLUDES) \
+ 	-latextitle 6,subsection -latextitle 7,subsubection \
+ 	../stdlib/hashtbl.mli \
+ 	../stdlib/arg.mli \
+@@ -331,21 +331,21 @@ test_latex_simple: dummy
+ 
+ test_man: dummy
+ 	$(MKDIR) $@
+-	$(OCAMLDOC) -man -sort -d $@ $(INCLUDES) odoc*.ml odoc*.mli
++	$(OCAMLDOC_BIN) -man -sort -d $@ $(INCLUDES) odoc*.ml odoc*.mli
+ 
+ test_texi: dummy
+ 	$(MKDIR) $@
+-	$(OCAMLDOC) -texi -sort -d $@ $(INCLUDES) odoc*.ml odoc*.mli
++	$(OCAMLDOC_BIN) -texi -sort -d $@ $(INCLUDES) odoc*.ml odoc*.mli
+ 
+ stdlib_man/Pervasives.3o: $(STDLIB_MLIS)
+ 	$(MKDIR) stdlib_man
+-	$(OCAMLDOC) -man -d stdlib_man $(INCLUDES) \
++	$(OCAMLDOC_BIN) -man -d stdlib_man $(INCLUDES) \
+ 	-t "OCaml library" -man-mini \
+ 	$(STDLIB_MLIS)
+ 
+ autotest_stdlib: dummy
+ 	$(MKDIR) $@
+-	$(OCAMLDOC) -g autotest/odoc_test.cmo \
++	$(OCAMLDOC_BIN) -g autotest/odoc_test.cmo \
+ 	$(INCLUDES) -keep-code \
+ 	../stdlib/pervasives.ml ../stdlib/*.mli \
+ 	../otherlibs/$(UNIXLIB)/unix.mli \
+diff --git a/otherlibs/Makefile.shared b/otherlibs/Makefile.shared
+index 26416ea..78297e1 100644
+--- a/otherlibs/Makefile.shared
++++ b/otherlibs/Makefile.shared
+@@ -18,9 +18,8 @@ include $(ROOTDIR)/config/Makefile
+ 
+ # Compilation options
+ CC=$(BYTECC)
+-CAMLRUN=$(ROOTDIR)/boot/ocamlrun
+ COMPFLAGS=-w +33..39 -warn-error A -g $(EXTRACAMLFLAGS)
+-MKLIB=$(CAMLRUN) $(ROOTDIR)/tools/ocamlmklib
++MKLIB=$(CAMLMKLIB_BIN)
+ 
+ # Variables to be defined by individual libraries:
+ #LIBNAME=
+@@ -43,13 +42,13 @@ all: lib$(CLIBNAME).$(A) $(LIBNAME).cma $(CMIFILES)
+ allopt: lib$(CLIBNAME).$(A) $(LIBNAME).cmxa $(LIBNAME).$(CMXS) $(CMIFILES)
+ 
+ $(LIBNAME).cma: $(CAMLOBJS)
+-	$(MKLIB) -o $(LIBNAME) -oc $(CLIBNAME) -ocamlc '$(CAMLC)' -linkall $(CAMLOBJS) $(LINKOPTS)
++	$(MKLIB) -o $(LIBNAME) -oc $(CLIBNAME) -ocamlc '$(CAMLC_BIN)' -linkall $(CAMLOBJS) $(LINKOPTS)
+ 
+ $(LIBNAME).cmxa: $(CAMLOBJS_NAT)
+-	$(MKLIB) -o $(LIBNAME) -oc $(CLIBNAME) -ocamlopt '$(CAMLOPT)' -linkall $(CAMLOBJS_NAT) $(LINKOPTS)
++	$(MKLIB) -o $(LIBNAME) -oc $(CLIBNAME) -ocamlopt '$(CAMLOPT_BIN)' -linkall $(CAMLOBJS_NAT) $(LINKOPTS)
+ 
+ $(LIBNAME).cmxs: $(LIBNAME).cmxa lib$(CLIBNAME).$(A)
+-	$(CAMLOPT) -shared -o $(LIBNAME).cmxs -I . $(LIBNAME).cmxa
++	$(CAMLOPT_BIN) -shared -o $(LIBNAME).cmxs -I . $(LIBNAME).cmxa
+ 
+ lib$(CLIBNAME).$(A): $(COBJS)
+ 	$(MKLIB) -oc $(CLIBNAME) $(COBJS) $(LDOPTS)
+@@ -76,13 +75,13 @@ clean:: partialclean
+ .SUFFIXES: .ml .mli .cmi .cmo .cmx .$(O)
+ 
+ .mli.cmi:
+-	$(CAMLC) -c $(COMPFLAGS) $<
++	$(CAMLC_BIN) -c $(COMPFLAGS) $<
+ 
+ .ml.cmo:
+-	$(CAMLC) -c $(COMPFLAGS) $<
++	$(CAMLC_BIN) -c $(COMPFLAGS) $<
+ 
+ .ml.cmx:
+-	$(CAMLOPT) -c $(COMPFLAGS) $<
++	$(CAMLOPT_BIN) -c $(COMPFLAGS) $<
+ 
+ .c.$(O):
+ 	$(BYTECC) $(BYTECCCOMPOPTS) $(CFLAGS) -c $<
+diff --git a/otherlibs/dynlink/Makefile b/otherlibs/dynlink/Makefile
+index f124bbb..3a5b105 100644
+--- a/otherlibs/dynlink/Makefile
++++ b/otherlibs/dynlink/Makefile
+@@ -15,7 +15,7 @@
+ 
+ include ../../config/Makefile
+ 
+-CAMLC=../../boot/ocamlrun ../../ocamlc
++CAMLC=$(CAMLC_BIN)
+ CAMLOPT=../../ocamlcompopt.sh
+ INCLUDES=-I ../../utils -I ../../typing -I ../../bytecomp -I ../../asmcomp
+ COMPFLAGS=-w +33..39 -warn-error A -I ../../stdlib $(INCLUDES)
+diff --git a/stdlib/Makefile.shared b/stdlib/Makefile.shared
+index e9d5940..cc9cc2b 100755
+--- a/stdlib/Makefile.shared
++++ b/stdlib/Makefile.shared
+@@ -12,14 +12,13 @@
+ #########################################################################
+ 
+ include ../config/Makefile
+-RUNTIME=../boot/ocamlrun
+ COMPILER=../ocamlc
+-CAMLC=$(RUNTIME) $(COMPILER)
++CAMLC=$(CAMLC_BIN)
+ COMPFLAGS=-strict-sequence -w +33..39 -g -warn-error A -nostdlib
+ OPTCOMPILER=../ocamlopt
+-CAMLOPT=$(RUNTIME) $(OPTCOMPILER)
++CAMLOPT=$(CAMLOPT_BIN)
+ OPTCOMPFLAGS=-warn-error A -nostdlib -g
+-CAMLDEP=../boot/ocamlrun ../tools/ocamldep
++CAMLDEP=$(CAMLDEP_BIN)
+ 
+ OBJS=pervasives.cmo $(OTHERS)
+ OTHERS=array.cmo list.cmo char.cmo string.cmo sys.cmo \
+diff --git a/tools/Makefile.shared b/tools/Makefile.shared
+index baed7df..2dba802 100644
+--- a/tools/Makefile.shared
++++ b/tools/Makefile.shared
+@@ -12,10 +12,8 @@
+ 
+ include ../config/Makefile
+ 
+-CAMLRUN=../boot/ocamlrun
+-CAMLC=$(CAMLRUN) ../boot/ocamlc -strict-sequence -nostdlib -I ../boot
+-CAMLOPT=$(CAMLRUN) ../ocamlopt -nostdlib -I ../stdlib
+-CAMLLEX=$(CAMLRUN) ../boot/ocamllex
++CAMLC=$(CAMLC_BIN) -strict-sequence -nostdlib -I ../boot
++CAMLOPT=$(CAMLOPT_BIN) -nostdlib -I ../stdlib
+ INCLUDES=-I ../utils -I ../parsing -I ../typing -I ../bytecomp -I ../asmcomp \
+ 	 -I ../driver
+ COMPFLAGS= -w +32+33+34+35+36+37+38+39 -warn-error A $(INCLUDES)
+@@ -137,7 +135,7 @@ ocaml299to3: $(OCAML299TO3)
+ 	$(CAMLC) $(LINKFLAGS) -o ocaml299to3 $(LIBRARY3) $(OCAML299TO3)
+ 
+ lexer299.ml: lexer299.mll
+-	$(CAMLLEX) lexer299.mll
++	$(CAMLLEX_BIN) lexer299.mll
+ 
+ #install::
+ #	cp ocaml299to3 $(BINDIR)/ocaml299to3$(EXE)
+@@ -153,7 +151,7 @@ scrapelabels: $(SCRAPELABELS)
+ 	$(CAMLC) $(LINKFLAGS) -o scrapelabels $(LIBRARY3) $(SCRAPELABELS)
+ 
+ lexer301.ml: lexer301.mll
+-	$(CAMLLEX) lexer301.mll
++	$(CAMLLEX_BIN) lexer301.mll
+ 
+ #install::
+ #	cp scrapelabels $(LIBDIR)
+@@ -190,7 +188,7 @@ clean::
+ 	if test -f cvt_emit; then mv -f cvt_emit cvt_emit.bak; else :; fi
+ 
+ cvt_emit.ml: cvt_emit.mll
+-	$(CAMLLEX) cvt_emit.mll
++	$(CAMLLEX_BIN) cvt_emit.mll
+ 
+ clean::
+ 	rm -f cvt_emit.ml
+-- 
+1.8.1.4
+

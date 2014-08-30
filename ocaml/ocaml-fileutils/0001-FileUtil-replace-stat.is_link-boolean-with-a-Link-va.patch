@@ -1,0 +1,659 @@
+From 50aac4cdf8161120233572d7db63b73fe6ddef2b Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Sat, 5 Oct 2013 15:08:00 +0200
+Subject: [PATCH 1/2] FileUtil: replace stat.is_link boolean with a Link
+ variant in type kind.
+
+In order to fill the stat structure, the previous code was first calling
+lstat() and if the file was a symlink, it would then call stat to retrieve
+and store the filetype of the target.
+
+This approach doesn't work at all if the target doesn't exist and prevented
+find from finding symlinks to non-existant targets or to targets that are
+symlinks.
+
+This patch adds a Link kind and choses between Unix.stat() and Unix.lstat()
+depending on the ?follow the FileUtil.stat().
+
+It also simplifies find() by merging several subfunctions together.
+
+The find() function used to raise an exception if there was a symlink loop.
+It will now silently ignore the loop (for now).
+
+As far as I can tell, cp() used to always dereference symlinks, no matter
+the ?follow parameter; it will now never do that.
+Dereferencing can be added back in another patch.
+---
+ src/FileUtil.ml | 268 ++++++++++++++++++++++++--------------------------------
+ test/test.ml    |  78 ++++++++++++-----
+ 2 files changed, 170 insertions(+), 176 deletions(-)
+
+diff --git a/src/FileUtil.ml b/src/FileUtil.ml
+index 6d24a62..deb87a4 100644
+--- a/src/FileUtil.ml
++++ b/src/FileUtil.ml
+@@ -84,6 +84,7 @@ type kind =
+   | Dev_block
+   | Fifo
+   | Socket
++  | Link
+ ;;
+   
+ (** Base permission. This is the permission corresponding to one user or group.
+@@ -112,7 +113,6 @@ type permission =
+ type stat =
+   {
+     kind              : kind;
+-    is_link           : bool;
+     permission        : permission;
+     size              : size;
+     owner             : int;
+@@ -120,6 +120,8 @@ type stat =
+     access_time       : float;
+     modification_time : float;
+     creation_time     : float;
++    device            : int;
++    inode             : int;
+   }
+ ;;
+ 
+@@ -394,19 +396,18 @@ module SetFilename = Set.Make (struct
+ end)
+ ;;
+ 
++module SetInode = Set.Make (struct
++  type t = int * int
++  let compare (a : int * int) (b : int * int) = Pervasives.compare a b
++end)
++;;
++
+ let doit force fln = 
+   match force with
+     Force -> true
+   | Ask ask -> ask fln
+ ;;
+ 
+-let prevent_recursion fln_set fln = 
+-  if SetFilename.mem fln fln_set then
+-    raise (RecursiveLink fln)
+-  else
+-    SetFilename.add fln fln_set
+-;;
+-
+ let solve_dirname dirname =
+   (* We have an ambiguity concerning "" and "." *)
+   if is_current dirname then
+@@ -419,15 +420,32 @@ let solve_dirname dirname =
+   
+ (** [stat fln] Return information about the file (like Unix.stat) 
+   *)
+-let stat (fln: filename) =
++let stat ?(follow = Follow) (fln: filename) =
+   try
+     let ustat = 
+-      Unix.LargeFile.lstat fln
++      let unix_stat fln =
++        try
++          Unix.LargeFile.stat fln
++        with Unix.Unix_error (Unix.ELOOP, _, _) ->
++          raise (RecursiveLink fln)
++      in
++      match follow with
++      | Skip ->
++          Unix.LargeFile.lstat fln
++      | SkipInform action ->
++          action fln;
++          Unix.LargeFile.lstat fln
++      | AskFollow pred ->
++          if pred fln then
++            unix_stat fln
++          else
++            Unix.LargeFile.lstat fln
++      | Follow ->
++            unix_stat fln
+     in
+     let stat_of_kind knd = 
+       {
+         kind              = knd;
+-        is_link           = false;
+         permission        = permission_of_int ustat.Unix.LargeFile.st_perm;
+         size              = B ustat.Unix.LargeFile.st_size;
+         owner             = ustat.Unix.LargeFile.st_uid;
+@@ -435,6 +453,8 @@ let stat (fln: filename) =
+         access_time       = ustat.Unix.LargeFile.st_atime;
+         modification_time = ustat.Unix.LargeFile.st_mtime;
+         creation_time     = ustat.Unix.LargeFile.st_ctime;
++        inode             = ustat.Unix.LargeFile.st_ino;
++        device            = ustat.Unix.LargeFile.st_dev;
+       }
+     in
+       match ustat.Unix.LargeFile.st_kind with
+@@ -451,35 +471,26 @@ let stat (fln: filename) =
+         | Unix.S_SOCK -> 
+             stat_of_kind Socket
+         | Unix.S_LNK -> 
+-            (
+-              let stat_of_kind knd =
+-                {(stat_of_kind knd) with is_link = true}
+-              in
+-                match (Unix.stat fln).Unix.st_kind with
+-                  | Unix.S_REG -> 
+-                      stat_of_kind File 
+-                  | Unix.S_DIR -> 
+-                      stat_of_kind Dir 
+-                  | Unix.S_CHR -> 
+-                      stat_of_kind Dev_char 
+-                  | Unix.S_BLK -> 
+-                      stat_of_kind Dev_block
+-                  | Unix.S_FIFO -> 
+-                      stat_of_kind Fifo 
+-                  | Unix.S_SOCK -> 
+-                      stat_of_kind Socket
+-                  | Unix.S_LNK -> 
+-                      failwith 
+-                        (Printf.sprintf 
+-                           "Unix.stat of file '%s' return a link"
+-                           fln)
+-            )
++            stat_of_kind Link
+   with Unix.Unix_error(_) ->
+     raise (FileDoesntExist fln)
+ ;;
+ 
++let prevent_recursion ?st set fln = 
++  let st = match st with
++  | None -> stat ~follow:Skip fln
++  | Some st -> st
++  in
++  let x = st.inode, st.device in
++  if SetInode.mem x set then
++    raise (RecursiveLink fln)
++  else
++    SetInode.add x set
++;;
++
+ (**/**)
+ let compile_filter 
++      ?(link_test_follow = Follow)
+       ?(match_compile=(fun s fn -> s = fn)) 
+       flt =
+ 
+@@ -487,9 +498,9 @@ let compile_filter
+     fn
+   in
+ 
+-  let wrapper f (_, st) =
++  let w ?(follow = Follow) f (_, st) =
+     try 
+-      f (Lazy.force st)
++      f (st ~follow)
+     with FileDoesntExist _ ->
+       false
+   in
+@@ -498,55 +509,55 @@ let compile_filter
+     function
+       | True -> (fun _ -> true)
+       | False -> (fun _ -> false)
+-      | Is_dev_block    -> wrapper (fun st -> st.kind = Dev_block)
+-      | Is_dev_char     -> wrapper (fun st -> st.kind = Dev_char)
+-      | Is_dir          -> wrapper (fun st -> st.kind = Dir)
+-      | Is_file         -> wrapper (fun st -> st.kind = File)
+-      | Is_socket       -> wrapper (fun st -> st.kind = Socket)
+-      | Is_pipe         -> wrapper (fun st -> st.kind = Fifo)
+-      | Is_link         -> wrapper (fun st -> st.is_link)
+-      | Exists          -> wrapper (fun st -> true) 
+-      | Is_set_group_ID -> wrapper (fun st -> st.permission.group.sticky)
+-      | Has_sticky_bit  -> wrapper (fun st -> st.permission.other.sticky)
+-      | Has_set_user_ID -> wrapper (fun st -> st.permission.user.sticky)
++      | Is_dev_block    -> w (fun st -> st.kind = Dev_block)
++      | Is_dev_char     -> w (fun st -> st.kind = Dev_char)
++      | Is_dir          -> w (fun st -> st.kind = Dir)
++      | Is_file         -> w (fun st -> st.kind = File)
++      | Is_socket       -> w (fun st -> st.kind = Socket)
++      | Is_pipe         -> w (fun st -> st.kind = Fifo)
++      | Is_link         -> w ~follow:link_test_follow (fun st -> st.kind = Link)
++      | Exists          -> w (fun st -> true) 
++      | Is_set_group_ID -> w (fun st -> st.permission.group.sticky)
++      | Has_sticky_bit  -> w (fun st -> st.permission.other.sticky)
++      | Has_set_user_ID -> w (fun st -> st.permission.user.sticky)
+       | Is_readable -> 
+-          wrapper 
++          w 
+             (fun st -> 
+                st.permission.user.read  || 
+                st.permission.group.read || 
+                st.permission.other.read)
+       | Is_writeable -> 
+-          wrapper 
++          w 
+             (fun st -> 
+                st.permission.user.write  || 
+                st.permission.group.write || 
+                st.permission.other.write)
+       | Is_exec -> 
+-          wrapper 
++          w 
+             (fun st -> 
+                st.permission.user.exec  || 
+                st.permission.group.exec || 
+                st.permission.other.exec)
+       | Size_not_null -> 
+-          wrapper (fun st -> (size_compare st.size (B 0L)) > 0)
++          w (fun st -> (size_compare st.size (B 0L)) > 0)
+       | Size_bigger_than sz -> 
+-          wrapper (fun st -> (size_compare st.size sz) > 0)
++          w (fun st -> (size_compare st.size sz) > 0)
+       | Size_smaller_than sz -> 
+-          wrapper (fun st -> (size_compare st.size sz) < 0)
++          w (fun st -> (size_compare st.size sz) < 0)
+       | Size_equal_to sz -> 
+-          wrapper (fun st -> (size_compare st.size sz) = 0)
++          w (fun st -> (size_compare st.size sz) = 0)
+       | Size_fuzzy_equal_to sz -> 
+-          wrapper (fun st -> (size_compare ~fuzzy:true st.size sz) = 0)
++          w (fun st -> (size_compare ~fuzzy:true st.size sz) = 0)
+       | Is_owned_by_user_ID  -> 
+-          wrapper (fun st -> Unix.geteuid () = st.owner)
++          w (fun st -> Unix.geteuid () = st.owner)
+       | Is_owned_by_group_ID -> 
+-          wrapper (fun st -> Unix.getegid () = st.group_owner)
++          w (fun st -> Unix.getegid () = st.group_owner)
+       | Is_newer_than(f1) -> 
+           begin
+             try 
+               let st1 = stat f1
+               in
+-              wrapper (fun st2 -> st1.modification_time < st2.modification_time)
++              w (fun st2 -> st1.modification_time < st2.modification_time)
+             with FileDoesntExist _ ->
+               fun x -> false
+           end
+@@ -555,14 +566,14 @@ let compile_filter
+             try 
+               let st1 = stat f1
+               in
+-              wrapper (fun st2 -> st1.modification_time > st2.modification_time)
++              w (fun st2 -> st1.modification_time > st2.modification_time)
+             with FileDoesntExist _ ->
+               fun x -> false
+           end
+       | Is_newer_than_date(dt) -> 
+-          wrapper (fun st -> st.modification_time > dt)
++          w (fun st -> st.modification_time > dt)
+       | Is_older_than_date(dt) -> 
+-          wrapper (fun st -> st.modification_time < dt)
++          w (fun st -> st.modification_time < dt)
+       | And(flt1,flt2) ->
+           let cflt1 = 
+             compile_filter_aux flt1
+@@ -622,9 +633,9 @@ let compile_filter
+         let lazy_stat =
+           match pre_stat with 
+             | Some st ->
+-                Lazy.lazy_from_val st
++                fun ~follow -> st
+             | None ->
+-                lazy (stat fn)
++                fun ~follow -> stat ~follow fn
+         in
+           res_filter (fn, lazy_stat)
+ ;;
+@@ -634,12 +645,12 @@ let all_upper_dir fln =
+     let dir = dirname fln
+     in
+     match lst with
+-      prev_dir :: tl when prev_dir = dir ->
+-      lst
++    | prev_dir :: tl when prev_dir = dir ->
++        lst
+     | _ ->
+-	all_upper_dir_aux (dir :: lst) dir
+-    in
+-      all_upper_dir_aux [fln] fln
++        all_upper_dir_aux (dir :: lst) dir
++  in
++    all_upper_dir_aux [fln] fln
+ ;;
+ 
+ (**/**)
+@@ -647,7 +658,7 @@ let all_upper_dir fln =
+ (** Test a file *)
+ let test ?match_compile tst =
+   let ctst = 
+-    compile_filter ?match_compile tst
++    compile_filter ~link_test_follow:Skip ?match_compile tst
+   in
+     fun fln -> ctst (solve_dirname fln)
+ ;;
+@@ -660,7 +671,7 @@ let pwd () =
+ (** Resolve to the real filename removing symlink *) 
+ let readlink fln =
+   let ctst = 
+-    compile_filter Is_link
++    compile_filter ~link_test_follow:Skip Is_link
+   in
+   let rec readlink_aux already_read fln = 
+     let newly_read = 
+@@ -686,7 +697,10 @@ let readlink fln =
+       with Not_found ->
+         fln
+   in 
+-    readlink_aux SetFilename.empty (make_absolute (pwd ()) fln)
++  try
++    readlink_aux SetInode.empty (make_absolute (pwd ()) fln)
++  with
++    FileDoesntExist _ -> fln
+ ;;
+ 
+ (** List the content of a directory 
+@@ -878,7 +892,7 @@ let touch
+ let find ?(follow = Skip) ?match_compile tst fln exec user_acc =
+ 
+   let user_test =
+-    compile_filter ?match_compile tst
++    compile_filter ~link_test_follow:follow ?match_compile tst
+   in
+ 
+   let process_file ((user_acc, already_read) as acc) st fln = 
+@@ -888,81 +902,25 @@ let find ?(follow = Skip) ?match_compile tst fln exec user_acc =
+       acc
+   in
+ 
+-  let skip_action =
+-    match follow with 
+-      | Skip | AskFollow _ | Follow ->
+-          ignore 
+-      | SkipInform f ->
+-          f
+-  in
+-
+-  let should_skip fln already_followed =
+-    match follow with 
+-      | Skip | SkipInform _ -> 
+-          true
+-      | AskFollow f -> 
+-          if not already_followed then
+-            (f fln) 
+-          else
+-            true
+-      | Follow -> 
+-          if already_followed then
+-            raise (RecursiveLink fln)
+-          else
+-            false
+-  in
+-
+-  let rec find_aux acc fln =
+-    try
+-      (
+-        let st = 
+-          stat fln
+-        in
+-          if st.kind = Dir then
+-            (
+-              if st.is_link then
+-                (
+-                  let (user_acc, dir_links) =
+-                    acc
+-                  in
+-                  let cur_link =
+-                     readlink fln
+-                  in
+-                  let dir_links, already_followed = 
+-                    try
+-                      (prevent_recursion dir_links cur_link), false
+-                    with RecursiveLink _ ->
+-                      dir_links, true
+-                  in
+-                  let acc = 
+-                    user_acc, dir_links
+-                  in
+-                    if should_skip fln already_followed then
+-                      (
+-                        skip_action fln;
+-                        acc
+-                      )
+-                    else
+-                      (
+-                        find_in_dir
+-                          (process_file acc st fln)
+-                          fln
+-                      )
+-                )
+-              else
+-                (
+-                  find_in_dir
+-                    (process_file acc st fln)
+-                    fln
+-                )
+-            )
+-          else
+-            (
+-              process_file acc st fln
+-            )
+-      )
+-    with FileDoesntExist _ ->
+-      acc
++  let rec find_aux ((user_acc, already_read) as acc) fln =
++    let (st, acc as x) =
++      try
++        (
++          let already_read = prevent_recursion already_read fln in
++          let acc = user_acc, already_read in
++          Some (stat ~follow fln), acc
++        )
++      with FileDoesntExist _ | RecursiveLink _ ->
++        None, acc
++    in
++    match x with
++    | Some st, acc ->
++        if st.kind = Dir then
++          find_in_dir (process_file acc st fln) fln
++        else
++          process_file acc st fln
++    | None, acc ->
++        acc
+ 
+   and find_in_dir acc drn = 
+     Array.fold_left
+@@ -977,7 +935,7 @@ let find ?(follow = Skip) ?match_compile tst fln exec user_acc =
+ 
+   let user_acc, _ = 
+     find_aux 
+-      (user_acc, SetFilename.empty) 
++      (user_acc, SetInode.empty) 
+       (reduce fln)
+   in
+     user_acc
+@@ -1029,7 +987,7 @@ let rm ?(force=Force) ?(recurse=false) fln_lst =
+ 
+ (** Copy the hierarchy of files/directory to another destination 
+   *)
+-let cp ?(follow=Skip) ?(force=Force) ?(recurse=false) fln_src_lst fln_dst = 
++let cp ?(force=Force) ?(recurse=false) fln_src_lst fln_dst =
+   let cpfile fln_src fln_dst =
+     let cpfile () = 
+       let buffer_len = 1024
+@@ -1048,13 +1006,15 @@ let cp ?(follow=Skip) ?(force=Force) ?(recurse=false) fln_src_lst fln_dst =
+       close_in ch_in;
+       close_out ch_out
+     in
+-    let st = stat fln_src
++    let st = stat ~follow:Skip fln_src
+     in
+     match st.kind with
+-      File -> 
+-       cpfile ()
++    | File -> 
++        cpfile ()
+     | Dir ->
+-      mkdir fln_dst
++        mkdir fln_dst
++    | Link ->
++        Unix.symlink (readlink fln_src) fln_dst
+     | Fifo 
+     | Dev_char 
+     | Dev_block
+@@ -1206,7 +1166,7 @@ let cmp ?(skip1 = 0) fln1 ?(skip2 = 0) fln2 =
+   *)
+ let du fln_lst = 
+   let du_aux (sz, lst) fln = 
+-    let st = stat fln
++    let st = stat ~follow:Skip fln
+     in
+     (size_add sz st.size, (fln, st.size) :: lst)
+   in
+diff --git a/test/test.ml b/test/test.ml
+index cb4d7aa..ccdf82e 100644
+--- a/test/test.ml
++++ b/test/test.ml
+@@ -29,6 +29,10 @@ module SetFilename = Set.Make (struct
+ end)
+ ;;
+ 
++let sp =
++  Printf.sprintf
++;;
++
+ let verbose = 
+   ref false
+ ;;
+@@ -47,7 +51,7 @@ let assert_equal_set_filename st_ref st =
+   let to_file_list_string lst =
+     String.concat ", " 
+       (List.map 
+-         (Printf.sprintf "%S")
++         (sp "%S")
+          lst)
+   in
+   let msg_difference = 
+@@ -61,15 +65,15 @@ let assert_equal_set_filename st_ref st =
+         | [], [] ->
+             "No difference"
+         | _, [] ->
+-            Printf.sprintf 
++            sp
+               "Files %s are not expected in result" 
+               (to_file_list_string file_not_expected)
+         | [], _ ->
+-            Printf.sprintf 
++            sp
+               "Files %s are not found in result" 
+               (to_file_list_string file_not_found)
+         | _, _ ->
+-            Printf.sprintf
++            sp
+               "File %s are not found and %s are not expected in result"
+               (to_file_list_string file_not_found)
+               (to_file_list_string file_not_expected)
+@@ -133,20 +137,20 @@ struct
+         if Sys.is_directory fn then
+           (
+             assert_bool
+-              (Printf.sprintf "%S directory cannot be removed" fn)
++              (sp "%S directory cannot be removed" fn)
+               (dir_check fn)
+           )
+         else
+           (
+             assert_bool
+-              (Printf.sprintf "%S file cannot be removed" fn)
++              (sp "%S file cannot be removed" fn)
+               (file_check fn)
+           )
+       )
+     else
+       (
+         assert_failure 
+-          (Printf.sprintf "%S doesn't exist" fn)
++          (sp "%S doesn't exist" fn)
+       )
+ end
+ ;;
+@@ -905,38 +909,68 @@ let test_fileutil =
+ 
+     "Unix specific" >:::
+     (
+-      let symlink = make_filename [dir_test ; "recurse"]
+-      in
++      let rec_dir = make_filename [dir_test ; "rec_dir"] in
++      let rec_dir_link = make_filename [ rec_dir; "rec_dir_link"] in
++      let cur_dir_link = make_filename [ rec_dir; "cur_dir_link"] in
+       match Sys.os_type with
+         "Unix" ->
+           [
+             "Unix symlink" >::
+             (fun () ->
+-              Unix.symlink current_dir symlink;
+-              assert_bool "symlink is not a link" (test Is_link symlink);
+-              assert_bool "symlink is not a dir" (test Is_dir symlink)
++              (
++                try
++                  Unix.mkdir rec_dir 0o755;
++                  Unix.symlink rec_dir rec_dir_link;
++                with Unix.Unix_error (error, f, arg) ->
++                  Printf.eprintf "%s %s: %s\n" f arg (Unix.error_message error);
++                  exit 2
++              );
++              assert_bool (rec_dir_link ^ " is not a link")
++                (test Is_link rec_dir_link)
+             );
+             
+             "Find v4 (link follow)" >::
+             (fun () ->
+-              try 
+-                find ~follow:Follow Is_dir dir_test (fun () fln -> ()) ();
+-                assert_failure "find follow should have failed, since there is recursive symlink"
+-              with RecursiveLink _ ->
+-                ()
++              let f l e = e :: l in
++              let set_dir = find ~follow:Follow Is_dir rec_dir f [] in
++              let set_link = find ~follow:Follow Is_link rec_dir f [] in
++              let msg set expected n = sp
++                "find returned [ %s ] instead of [ %s ] (%d)."
++                (String.concat "; " set)
++                (String.concat "; " expected)
++                n
++              in
++              assert_bool (msg set_dir [ rec_dir; rec_dir_link ] 1)
++                (ListLabels.for_all [ rec_dir; rec_dir_link ]
++                  ~f:(fun e -> List.mem e set_dir));
++              assert_bool (msg set_link [] 2) (set_link = []);
+             );
+ 
+             "Find v5 (no link follow)" >::
+             (fun () ->
+-              let set = find ~follow:Skip Is_dir dir_test (fun set fln -> SetFilename.add fln set) SetFilename.empty
+-              in
+-              assert_bool "find symlink skip fails" (SetFilename.equal set !dirs)
++              (
++                try
++                  Unix.symlink current_dir cur_dir_link;
++                with Unix.Unix_error (error, f, arg) ->
++                  Printf.eprintf "%s %s: %s\n" f arg (Unix.error_message error)
++              );
++              let set_dir =
++                find ~follow:Skip Is_dir rec_dir (fun l e -> e :: l) [] in
++              let set_links =
++                find ~follow:Skip Is_link rec_dir (fun l e -> e :: l) [] in
++              assert_bool "find symlink skip fails (1)" (set_dir = [rec_dir]);
++              assert_bool "find symlink skip fails (2)"
++                (ListLabels.for_all [ rec_dir_link; cur_dir_link ]
++                  ~f:(fun e -> List.mem e set_links))
+             );
+ 
+             "Unix delete symlink" >::
+             (fun () ->
+-              rm [symlink];
+-              assert_bool "rm symlink failed" (test (Not Exists) symlink)
++              rm [rec_dir_link; cur_dir_link];
++              rm ~recurse:true [rec_dir];
++              ListLabels.iter [ rec_dir_link; cur_dir_link; rec_dir_link ]
++                ~f:(fun fln ->
++                  assert_bool (sp "rm %S failed" fln) (test (Not Exists) fln))
+             )
+           ]
+       | _ ->
+-- 
+1.8.4
+

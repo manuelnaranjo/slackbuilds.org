@@ -1,0 +1,120 @@
+#!/bin/sh
+
+# Slackware build script for ocaml-archive
+
+# Copyright 2013 Adrien Nader <adrien@notk.org>
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR "AS IS" AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+PRGNAM="ocaml-archive"
+VERSION=${VERSION:-2.8.4+2}
+BUILD=${BUILD:-1}
+TAG=${TAG:-_SBo}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) ARCH=i486 ;;
+    arm*) ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) ARCH=$(uname -m) ;;
+  esac
+fi
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp/SBo}
+PKG=$TMP/package-$PRGNAM
+OUTPUT=${OUTPUT:-/tmp}
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+fi
+
+set -e
+
+rm -rf $PKG
+mkdir -p $TMP $PKG $OUTPUT
+cd $TMP
+rm -rf $PRGNAM-$VERSION
+tar xvf $CWD/$PRGNAM-$VERSION.tar.gz
+cd $PRGNAM-$VERSION
+chown -R root:root .
+chmod -R u+w,go+r-w,a-s .
+
+
+#! PATCH
+patch --verbose -p1 < "${CWD}/0001-_oasis-make-it-possible-to-not-build-tests-docs-and-.patch"
+patch --verbose -p1 < "${CWD}/0002-Bind-extract-set_pathname-and-read_open_memory-strin.patch"
+patch --verbose -p1 < "${CWD}/0003-stubs-bind-archive_entry_-set_-pathname-through-a-ma.patch"
+patch --verbose -p1 < "${CWD}/0004-Bind-archive_entry_-set_-hard-sym-link-and-archive_e.patch"
+
+#! PATCH: S_IFLNK and S_IFSOCK aren't defined for Windows; re-use the ones from
+#         libarchive's archive_windows.h private header.
+sed -i \
+  -e 's/S_IFLNK/0120000/g' \
+  -e 's/S_IFSOCK/0140000 /g' \
+  src/Archive_stub.c
+
+OCAMLFIND_DESTDIR="$(ocamlfind printconf destdir)"
+DD="$PKG/${OCAMLFIND_DESTDIR}"
+mkdir -p "${DD}"
+ocaml setup.ml -configure --prefix "/${PREFIX}" --destdir "${DD}" --mandir "/${PREFIX}/man" --override ext_dll .dll --disable-archivelwt
+ocaml setup.ml -build
+mkdir -p "${DD}/stublibs"
+OCAMLFIND_DESTDIR="${DD}" ocaml setup.ml -install
+
+if [ -z "${SLACKBUILDS_DONT_STRIP}" ]; then
+  find $PKG -type f \
+    \( -name '*.o' -o -name '*.a' -o -name '*.so' -o -name '*.native' \) \
+    -exec file {} + \
+    | grep -E 'ELF.*(executable|shared object)' \
+    | cut -f 1 -d : \
+    | xargs strip --strip-unneeded 2> /dev/null \
+    || true
+fi
+
+# Compress man pages
+if [ -d ${PKG}/${PREFIX}/man ]; then
+  find $PKG/${PREFIX}/man -type f -exec gzip -9 {} +
+  for i in $(find $PKG/${PREFIX}/man -type l); do
+    ln -s $(readlink $i).gz $i.gz && rm $i
+  done
+fi
+
+mkdir -p $PKG/${PREFIX}/doc/$PRGNAM-$VERSION
+cat $CWD/$PRGNAM.SlackBuild > $PKG/${PREFIX}/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
+
+cat ${CWD}/$PRGNAM.yypkg.script | sed \
+  -e "s/%{PKG}/${PRGNAM}/" \
+  -e "s/%{HST}/${HOST_TRIPLET}/" \
+  -e "s/%{TGT}//" \
+  -e "s/%{VER}/${VERSION}/" \
+  -e "s/%{BUILD}/${BUILD}/" \
+  | yypkg --makepkg --output ${YYOUTPUT} --script - --directory "${PKG}/${PREFIX}"
