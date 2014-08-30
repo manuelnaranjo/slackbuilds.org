@@ -90,7 +90,7 @@ LIBS="-levil ${LIBS_WIN} " \
   --docdir=/${PREFIX}/doc/$PRGNAM-$VERSION \
   --build=$ARCH-slackware-linux \
   --host=${HOST_TRIPLET} \
-  --disable-xx-bindings \
+  --disable-cxx-bindings \
   ${WITH_EET_EET} \
   ${WITH_EDJE_CC} \
   ${WITH_EOLIAN_GEN} \
