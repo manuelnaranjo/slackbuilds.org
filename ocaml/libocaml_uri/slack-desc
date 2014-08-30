@@ -1,0 +1,19 @@
+# HOW TO EDIT THIS FILE:
+# The "handy ruler" below makes it easier to edit a package description.
+# Line up the first '|' above the ':' following the base package name, and
+# the '|' on the right side marks the last column you can put a character in.
+# You must make exactly 11 lines for the formatting to be correct.  It's also
+# customary to leave one space after the ':' except on otherwise blank lines.
+
+     |-----handy-ruler------------------------------------------------------|
+libocaml_uri: libocaml_uri (short description of app)
+libocaml_uri:
+libocaml_uri: Long description of appname, wrapped at 71 characters *after* the
+libocaml_uri: colon following "appname" (and the 'handy ruler' should start at
+libocaml_uri: that colon and be exactly 71 characters long).
+libocaml_uri: If there is room, there might be a link to the homepage of the
+libocaml_uri: application on one of these lines, but it's not necessary.
+libocaml_uri:
+libocaml_uri: The maximum number of lines prefixed by "appname:" is 11.
+libocaml_uri: Lines without any other text should *not* have a space after the :
+libocaml_uri:
