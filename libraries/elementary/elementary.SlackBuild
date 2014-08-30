@@ -71,8 +71,8 @@ if [ "${DO_STATIC:-no}" = "yes" ]; then
 fi
 
 case "${HOST_TRIPLET}" in
-  *-*-mingw*) LDFLAGS_WIN="-lpsapi -lole32 -lws2_32" ;;
-  *)          LDFLAGS_WIN="" ;;
+  *-*-mingw*) LIBS_WIN="-levil -liconv -lpsapi -lole32 -lws2_32" ;;
+  *)          LIBS_WIN="" ;;
 esac
 
 autoreconf -fiv
@@ -80,7 +80,7 @@ autoreconf -fiv
 CFLAGS="-O2" \
 CXXFLAGS="-O2" \
 LDFLAGS="-L/${PREFIX}/lib${LIBDIRSUFFIXl}" \
-LIBS="-levil ${LIBS_WIN} " \
+LIBS="${LIBS_WIN} " \
 ./configure \
   --prefix=/${PREFIX} \
   --libdir=/${PREFIX}/lib${LIBDIRSUFFIX} \
