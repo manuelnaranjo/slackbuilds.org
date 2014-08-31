@@ -56,11 +56,11 @@ OCAMLFIND_DESTDIR="${DD}" ocaml setup.ml -install
 
 if [ -z "${SLACKBUILDS_DONT_STRIP}" ]; then
   find $PKG -type f \
-    \( -name '*.o' -o -name '*.a' -o -name '*.so' -o -name '*.native' \) \
+    ! -name '*.byte' \
     -exec file {} + \
-    | grep -E 'ELF.*(executable|shared object)' \
+    | grep -E "${HOST_EXE_FORMAT}.*(executable|shared object)" \
     | cut -f 1 -d : \
-    | xargs strip --strip-unneeded 2> /dev/null \
+    | xargs ${HOST_STRIP} --strip-unneeded 2> /dev/null \
     || true
 fi
 
