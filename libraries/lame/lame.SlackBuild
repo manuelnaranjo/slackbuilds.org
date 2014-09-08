@@ -59,6 +59,7 @@ CXXFLAGS="-O2" \
   --docdir=/${PREFIX}/doc/$PRGNAM-$VERSION \
   --htmldir=/${PREFIX}/doc/$PRGNAM-$VERSION \
   --enable-nasm \
+  --disable-static \
   --host=${HOST_TRIPLET} \
   --build=${BUILD_TRIPLET}
 
