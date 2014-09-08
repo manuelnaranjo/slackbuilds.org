@@ -49,11 +49,10 @@ case "${HOST_TRIPLET}" in
   *) EXE_EXT="" ;;
 esac
 
-# strace -tt -f -o log -s 128 make
 make
 
-mkdir -p $CWD/${PREFIX}/bin
-cp -L src/yypkg.native $CWD/${PREFIX}/bin/yypkg${EXE_EXT}
+mkdir -p $PKG/${PREFIX}/bin
+cp -L src/yypkg.native $PKG/${PREFIX}/bin/yypkg${EXE_EXT}
 
 if [ -z "${SLACKBUILDS_DONT_STRIP}" ]; then
   find $PKG -type f \
