@@ -50,7 +50,7 @@ OCAMLFIND_DESTDIR="$(ocamlfind printconf destdir)"
 DD="$PKG/${OCAMLFIND_DESTDIR}"
 mkdir -p "${DD}"
 ocaml setup.ml -configure --prefix "/${PREFIX}" --destdir "${DD}" --mandir "/${PREFIX}/man" --override ext_dll .dll
-ocaml setup.ml -build
+ocaml setup.ml -build -j 4
 mkdir -p "${DD}/stublibs"
 OCAMLFIND_DESTDIR="${DD}" ocaml setup.ml -install
 
