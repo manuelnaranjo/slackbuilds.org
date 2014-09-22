@@ -16,8 +16,6 @@ export WITH_IMAGE_LOADERS="\
   --disable-image-loader-pmaps \
   --disable-image-loader-psd \
   --disable-image-loader-gif \
-  --disable-image-loader-png \
-  --disable-image-loader-jpeg \
   --disable-image-loader-bmp \
   --disable-image-loader-ico \
 "
