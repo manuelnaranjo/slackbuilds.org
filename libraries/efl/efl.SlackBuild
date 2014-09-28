@@ -46,7 +46,11 @@ case "${HOST_TRIPLET}" in
   *)          LDFLAGS_WIN="" ;;
 esac
 
-sed -i '/bin_PROGRAMS += / d' src/Makefile_Evil.am
+#! PATCH: at first I was using the code below but it turns out that debian's
+#         autotools generate something that doesn't work so instead I'm
+#         changing the .in directly.
+# sed -i '/bin_PROGRAMS += / d' src/Makefile_Evil.am
+sed -i '/@HAVE_WINDOWS_TRUE@am__append_2 = bin.evil.evil_suite bin.evil.test_evil/ d' src/Makefile.in
 
 if [ "${DO_STATIC:-no}" = "yes" ] && echo "${HOST_TRIPLET}" | grep "mingw"; then
   sed -i \
@@ -71,7 +75,7 @@ if [ "${DO_STATIC:-no}" = "yes" ] && echo "${HOST_TRIPLET}" | grep "mingw"; then
   find . -name "*.h" -exec sed -i '/dllimport/ s/.*/\#define EAPI /' {} +
 fi
 
-autoreconf -fiv
+# autoreconf -fiv
 
 CFLAGS="-O2" \
 CXXFLAGS="-O2" \
