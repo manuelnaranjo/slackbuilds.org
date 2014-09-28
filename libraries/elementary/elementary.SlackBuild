@@ -86,7 +86,7 @@ LIBS="${LIBS}" \
   --localstatedir=/${PREFIX}/var \
   --mandir=/${PREFIX}/man \
   --docdir=/${PREFIX}/doc/$PRGNAM-$VERSION \
-  --build=$ARCH-slackware-linux \
+  --build=${BUILD_TRIPLET} \
   --host=${HOST_TRIPLET} \
   --disable-cxx-bindings \
   ${WITH_EET_EET} \
