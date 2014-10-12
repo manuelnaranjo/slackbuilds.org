@@ -77,6 +77,11 @@ fi
 
 # autoreconf -fiv
 
+sed -i \
+  -e 's/build_cpu_sse3="yes"/build_cpu_sse3="no"/g' \
+  -e '/\#define BUILD_SSE3 1/ d' \
+  configure
+
 CFLAGS="-O2" \
 CXXFLAGS="-O2" \
 LDFLAGS="${LDFLAGS_WIN} -L/${PREFIX}/lib${LIBDIRSUFFIX}" \
