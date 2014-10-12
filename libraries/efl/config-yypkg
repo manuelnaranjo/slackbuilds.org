@@ -4,7 +4,7 @@ export WITH_FONTCONFIG="--disable-fontconfig"
 export WITH_CSERVE="--disable-cserve"
 export WITH_AUDIO="--disable-audio"
 export WITH_AVAHI="--disable-avahi"
-export WITH_VAL2="--disable-v4l2"
+export WITH_V4L2="--disable-v4l2"
 export WITH_DOC="--disable-doc"
 export WITH_IMAGE_LOADERS="\
   --disable-image-loader-tiff \

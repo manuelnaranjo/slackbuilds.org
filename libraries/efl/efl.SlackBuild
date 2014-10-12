@@ -100,7 +100,7 @@ LDFLAGS="${LDFLAGS_WIN} -L/${PREFIX}/lib${LIBDIRSUFFIX}" \
   ${WITH_CSERVE} \
   ${WITH_AUDIO} \
   ${WITH_AVAHI} \
-  ${WITH_VAL2} \
+  ${WITH_V4L2} \
   ${WITH_DOC} \
   ${WITH_IMAGE_LOADERS} \
   --with-crypto=none \
