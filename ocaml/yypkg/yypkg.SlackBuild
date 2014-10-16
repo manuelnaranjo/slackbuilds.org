@@ -53,6 +53,7 @@ make
 
 mkdir -p $PKG/${PREFIX}/bin
 cp -L src/yypkg.native $PKG/${PREFIX}/bin/yypkg${EXE_EXT}
+cp -L src/wrapper.native $PKG/${PREFIX}/bin/yypkg_wrapper${EXE_EXT}
 
 if [ -z "${SLACKBUILDS_DONT_STRIP}" ]; then
   find $PKG -type f \
