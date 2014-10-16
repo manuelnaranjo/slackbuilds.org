@@ -20,6 +20,7 @@ export WITH_IMAGE_LOADERS="\
   --disable-image-loader-jpeg \
   --disable-image-loader-bmp \
   --disable-image-loader-ico \
+  --disable-image-loader-jp2k \
 "
 export DISABLE_STATIC="--enable-static --disable-shared"
 export DO_STATIC="yes"

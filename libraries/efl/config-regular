@@ -6,5 +6,7 @@ export WITH_AUDIO=""
 export WITH_AVAHI=""
 export WITH_V4L2=""
 export WITH_DOC=""
-export WITH_IMAGE_LOADERS=""
+export WITH_IMAGE_LOADERS="
+  --disable-image-loader-jp2k \
+"
 export DISABLE_STATIC="--disable-static"
