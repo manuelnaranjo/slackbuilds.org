@@ -49,7 +49,7 @@ case "${HOST_TRIPLET}" in
   *) EXE_EXT="" ;;
 esac
 
-make
+make WITH_ICON="donkey" HOST_TRIPLET="${HOST_TRIPLET}"
 
 mkdir -p $PKG/${PREFIX}/bin
 cp -L src/yypkg.native $PKG/${PREFIX}/bin/yypkg${EXE_EXT}
