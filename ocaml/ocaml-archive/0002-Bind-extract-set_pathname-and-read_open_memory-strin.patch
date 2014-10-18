@@ -231,7 +231,7 @@ index 5f38cf9..949192d 100644
 +  ba = Caml_ba_array_val(vba);
 +
 +  caml_enter_blocking_section();
-+  res = archive_read_open_memory(*ptr, ba->proxy->data, ba->proxy->size);
++  res = archive_read_open_memory(*ptr, ba->data, caml_ba_byte_size(ba));
 +  caml_leave_blocking_section();
 +
 +  caml_archive_check_error(res, *ptr);
