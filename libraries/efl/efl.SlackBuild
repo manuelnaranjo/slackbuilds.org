@@ -50,6 +50,16 @@ esac
 patch -p1 \
   < ${CWD}/0001-Ecore_Win32-Fix-string-for-the-BackSpace-key-on-Wind.patch
 
+#! PATCH (upstream)
+patch -p1 \
+  < ${CWD}/0001-edje_cc-Print-out-the-right-file-name-on-the-error-m.patch
+patch -p1 \
+  < ${CWD}/0002-edje_cc-Use-eina_file_mkstemp-to-avoid-problems-with.patch
+patch -p1 \
+  < ${CWD}/0003-edje_cc_parse-Use-eina_file_mkstemp-to-avoid-problem.patch
+patch -p1 \
+  < ${CWD}/0004-edje_cc-Remove-no-longer-needed-extern-tmp_dir.patch
+
 #! PATCH: at first I was using the code below but it turns out that debian's
 #         autotools generate something that doesn't work so instead I'm
 #         changing the .in directly.

@@ -1,0 +1,27 @@
+From 6d67f69061dc0075cef14b26a72aeed1208e15e4 Mon Sep 17 00:00:00 2001
+From: Stefan Schmidt <s.schmidt@samsung.com>
+Date: Wed, 10 Sep 2014 15:27:35 +0200
+Subject: [PATCH 1/4] edje_cc: Print out the right file name on the error
+ message.
+
+We failed to create sc->tmpo not tmpn here. Looks like a classical C&P error
+---
+ src/bin/edje/edje_cc_out.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/bin/edje/edje_cc_out.c b/src/bin/edje/edje_cc_out.c
+index d8a26c4..0dab938 100755
+--- a/src/bin/edje/edje_cc_out.c
++++ b/src/bin/edje/edje_cc_out.c
+@@ -1552,7 +1552,7 @@ data_write_scripts(Eet_File *ef)
+           {
+              unlink(sc->tmpn);
+              error_and_abort(ef, "Unable to open temp file \"%s\" for script "
+-                             "compilation.", sc->tmpn);
++                             "compilation.", sc->tmpo);
+           }
+         create_script_file(ef, sc->tmpn, cd, sc->tmpn_fd);
+         snprintf(buf, sizeof(buf),
+-- 
+1.8.4
+
