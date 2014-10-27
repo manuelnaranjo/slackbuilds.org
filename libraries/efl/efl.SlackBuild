@@ -46,9 +46,14 @@ case "${HOST_TRIPLET}" in
   *)          LDFLAGS_WIN="" ;;
 esac
 
-#! PATCH (upstream)
-patch -p1 \
-  < ${CWD}/0001-Ecore_Win32-Fix-string-for-the-BackSpace-key-on-Wind.patch
+case "${VERSION}" in
+  1.11.*)
+    #! PATCH (upstream)
+    patch -p1 \
+      < ${CWD}/0001-Ecore_Win32-Fix-string-for-the-BackSpace-key-on-Wind.patch
+    ;;
+esac
+
 
 #! PATCH: at first I was using the code below but it turns out that debian's
 #         autotools generate something that doesn't work so instead I'm
