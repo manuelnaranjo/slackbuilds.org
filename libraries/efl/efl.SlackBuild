@@ -54,6 +54,10 @@ case "${VERSION}" in
     ;;
 esac
 
+#!PATCH
+sed -i \
+  '/\/..\/lib\/ecore_evas\/engines/ s/lib/lib'"${LIBDIRSUFFIX}"'/g' \
+  src/lib/ecore_evas/ecore_evas_module.c
 
 #! PATCH: at first I was using the code below but it turns out that debian's
 #         autotools generate something that doesn't work so instead I'm
