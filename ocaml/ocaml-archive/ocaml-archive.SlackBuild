@@ -57,6 +57,13 @@ sed -i \
   -e 's/S_IFSOCK/0140000 /g' \
   src/Archive_stub.c
 
+#! PATCH
+cat > src/Archive_stub.c.new << EOF
+#define __MINGW_USE_VC2005_COMPAT 1
+$(cat src/Archive_stub.c)
+EOF
+mv src/Archive_stub.c.new src/Archive_stub.c
+
 OCAMLFIND_DESTDIR="$(ocamlfind printconf destdir)"
 DD="$PKG/${OCAMLFIND_DESTDIR}"
 mkdir -p "${DD}"
