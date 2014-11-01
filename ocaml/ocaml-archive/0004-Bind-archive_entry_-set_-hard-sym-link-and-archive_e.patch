@@ -63,7 +63,7 @@ index 7665439..919f02e 100644
 -    vres = caml_copy_string( \
 -        archive_entry_ ## field (*Entry_val(ventry))); \
 -    CAMLreturn(vres); \
-+    char *res; \
++    const char *res; \
 +    res = archive_entry_ ## field (*Entry_val(ventry)); \
 +    if (res == NULL) { \
 +      caml_failwith("Field not set."); \
