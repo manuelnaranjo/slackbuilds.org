@@ -37,10 +37,7 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} +
 
-# Default to the software_gdi engine
-sed -i '/_elm_config->engine = eina_stringshare_add("software_x11");/ s/x11/gdi/' src/lib/elm_config.c
-
-unset $TERM
+unset TERM
 
 if [ x"${HOST_TRIPLET}" != x"${BUILD_TRIPLET}" ]; then
   WITH_EET_EET="--with-eet-eet=${YYPREFIX_NATIVE}/bin/eet"
@@ -68,6 +65,15 @@ fi
 
 if [ "${DO_STATIC:-no}" = "yes" ]; then
   find . \( -name "*.h" -o -name "*.h.in" \) -exec sed -i '/dllimport/ s/.*/\#define EAPI /' {} +
+
+  for i in ${CWD}/*.patch; do
+    patch -p1 --verbose < $i || exit 1
+  done
+
+  # !PATCH
+  # Default to the software_gdi engine
+  sed -i '/_elm_config->engine = eina_stringshare_add(DEFAULT_ENGINE);/ s/DEFAULT_ENGINE/"software_gdi"/' src/lib/elm_config.c
+
 fi
 
 case "${HOST_TRIPLET}" in
