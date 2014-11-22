@@ -54,7 +54,7 @@ patch --verbose -p1 < "${CWD}/0004-Bind-archive_entry_-set_-hard-sym-link-and-ar
 #         libarchive's archive_windows.h private header.
 sed -i \
   -e 's/S_IFLNK/0120000/g' \
-  -e 's/S_IFSOCK/0140000 /g' \
+  -e 's/S_IFSOCK/0140000/g' \
   src/Archive_stub.c
 
 #! PATCH
