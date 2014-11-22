@@ -168,6 +168,8 @@ make -j7
 make install DESTDIR=$PKG
 make install-man DESTDIR=$PKG
 
+mv $PKG/${PREFIX}/lib${LIBDIRSUFFIX}/*.dll $PKG/${PREFIX}/bin
+
 find $PKG | xargs file | egrep -e "executable|shared object" \
   | grep ${HOST_EXE_FORMAT} | cut -f 1 -d : \
   | xargs ${HOST_STRIP} --strip-unneeded 2> /dev/null || true
