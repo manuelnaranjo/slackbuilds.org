@@ -20,3 +20,4 @@ export WITH_IMAGE_LOADERS="\
   --disable-image-loader-ico \
 "
 export DISABLE_STATIC="--disable-static"
+export YYLOWCOMPRESS="1"
