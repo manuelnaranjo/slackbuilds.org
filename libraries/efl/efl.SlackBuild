@@ -88,7 +88,7 @@ if [ "${DO_STATIC:-no}" = "yes" ] && echo "${HOST_TRIPLET}" | grep "mingw"; then
   find . -name "*.h" -exec sed -i '/dllimport/ s/.*/\#define EAPI /' {} +
 fi
 
-sed -i -e 's/immintrin.h/immintrin-disabled.h' configure.ac
+sed -i -e 's/immintrin.h/immintrin-disabled.h/' configure.ac
 
 patch -p1 --verbose < ${CWD}/0001-win32-rely-on-a-pthreads-library-instead-of-the-win3.patch
 
