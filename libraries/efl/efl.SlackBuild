@@ -88,12 +88,14 @@ if [ "${DO_STATIC:-no}" = "yes" ] && echo "${HOST_TRIPLET}" | grep "mingw"; then
   find . -name "*.h" -exec sed -i '/dllimport/ s/.*/\#define EAPI /' {} +
 fi
 
-# autoreconf -fiv
-
 sed -i \
   -e 's/build_cpu_sse3="yes"/build_cpu_sse3="no"/g' \
   -e '/\#define BUILD_SSE3 1/ d' \
   configure
+
+patch -p1 --verbose < ${CWD}/0001-win32-rely-on-a-pthreads-library-instead-of-the-win3.patch
+
+autoreconf -fiv
 
 CFLAGS="-O2" \
 CXXFLAGS="-O2" \
@@ -134,7 +136,7 @@ LDFLAGS="${LDFLAGS_WIN} -L/${PREFIX}/lib${LIBDIRSUFFIX}" \
   ${WITH_EOLIAN_CXX} \
   ${DISABLE_STATIC}
 
-make -j4 || make
+make -j4 || make V=1
 make install DESTDIR=$PKG
 
 find $PKG | xargs file | egrep -e "executable|shared object" \

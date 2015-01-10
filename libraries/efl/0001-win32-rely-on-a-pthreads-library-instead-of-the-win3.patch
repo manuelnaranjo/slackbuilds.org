@@ -1,0 +1,1186 @@
+From a19245c6aed5f8daead4c265dc454c0d86eef2df Mon Sep 17 00:00:00 2001
+From: Adrien Nader <adrien@notk.org>
+Date: Sat, 10 Jan 2015 00:39:10 +0100
+Subject: [PATCH] win32: rely on a pthreads library instead of the win32 API.
+
+The Win32 backend for threading works fairly well but there are a few
+bugs and libraries such as winpthreads are now available and reliable.
+
+The main motivation for the switch is not bugs in the current backend
+but the maintenance cost associated with having two codepaths, almost
+1000 lines of thread-related code and not having as much testing as
+winpthreads gets (it's the backend for C++11 threading in GCC on
+Windows, is used by several other projects and has many more eyes
+looking at it).
+---
+ m4/efl_threads.m4                     |  13 +-
+ src/Makefile_Eina.am                  |  10 +-
+ src/lib/eina/eina_counter.c           |  50 ---
+ src/lib/eina/eina_inline_lock_win32.x | 610 ----------------------------------
+ src/lib/eina/eina_inline_private.h    |  27 --
+ src/lib/eina/eina_lock.h              |   6 +-
+ src/lib/eina/eina_main.c              |  29 --
+ src/lib/eina/eina_thread.c            | 225 +------------
+ 8 files changed, 7 insertions(+), 963 deletions(-)
+ delete mode 100644 src/lib/eina/eina_inline_lock_win32.x
+
+diff --git a/m4/efl_threads.m4 b/m4/efl_threads.m4
+index 9596908..dfa8536 100644
+--- a/m4/efl_threads.m4
++++ b/m4/efl_threads.m4
+@@ -25,17 +25,8 @@ gl_LOCK
+ 
+ AC_DEFINE([EFL_HAVE_THREADS], [1], [Define to mention that POSIX or Win32 threads are supported])
+ 
+-case "$host_os" in
+-   mingw*)
+-      _efl_have_win32_threads="yes"
+-      efl_have_setaffinity="yes"
+-      AC_DEFINE([EFL_HAVE_WIN32_THREADS], [1], [Define to mention that Win32 threads are supported])
+-      ;;
+-   *)
+-      _efl_have_posix_threads="${gl_use_threads}"
+-      AC_DEFINE([EFL_HAVE_POSIX_THREADS], [1], [Define to mention that POSIX threads are supported])
+-      ;;
+-esac
++_efl_have_posix_threads="${gl_use_threads}"
++AC_DEFINE([EFL_HAVE_POSIX_THREADS], [1], [Define to mention that POSIX threads are supported])
+ 
+ dnl System specific CFLAGS
+ if test "x${_efl_have_posix_threads}" = "xyes"; then
+diff --git a/src/Makefile_Eina.am b/src/Makefile_Eina.am
+index 1db4df2..0f56a43 100644
+--- a/src/Makefile_Eina.am
++++ b/src/Makefile_Eina.am
+@@ -84,18 +84,14 @@ lib/eina/eina_tmpstr.h \
+ lib/eina/eina_alloca.h \
+ lib/eina/eina_cow.h \
+ lib/eina/eina_inline_unicode.x \
+-lib/eina/eina_thread_queue.h
++lib/eina/eina_thread_queue.h \
++lib/eina/eina_inline_lock_posix.x
++
+ 
+ # Will be back for developper after 1.2.
+ # lib/eina/eina_model.h
+ # lib/eina/eina_object.h
+ 
+-if HAVE_WIN32
+-dist_installed_einaheaders_DATA += lib/eina/eina_inline_lock_win32.x
+-else
+-dist_installed_einaheaders_DATA += lib/eina/eina_inline_lock_posix.x
+-endif
+-
+ lib_eina_libeina_la_SOURCES = \
+ lib/eina/eina_abi.c \
+ lib/eina/eina_accessor.c \
+diff --git a/src/lib/eina/eina_counter.c b/src/lib/eina/eina_counter.c
+index 084788e..34a0396 100644
+--- a/src/lib/eina/eina_counter.c
++++ b/src/lib/eina/eina_counter.c
+@@ -68,10 +68,6 @@ struct _Eina_Clock
+    Eina_Bool valid;
+ };
+ 
+-#ifdef _WIN32
+-LARGE_INTEGER _eina_counter_frequency;
+-#endif
+-
+ static char *
+ _eina_counter_asiprintf(char *base, int *position, const char *format, ...)
+ {
+@@ -117,52 +113,6 @@ _eina_counter_asiprintf(char *base, int *position, const char *format, ...)
+  */
+ 
+ /*============================================================================*
+- *                                 Global                                     *
+- *============================================================================*/
+-
+-/**
+- * @internal
+- * @brief Initialize the eina counter internal structure.
+- *
+- * @return #EINA_TRUE on success, #EINA_FALSE on failure.
+- *
+- * This function shuts down the counter module set up by
+- * eina_counter_init(). It is called by eina_init().
+- *
+- * This function sets up the error module of Eina and only on Windows,
+- * it initializes the high precision timer. It is also called
+- * by eina_init(). It returns 0 on failure, otherwise it returns the
+- * number of times it has already been called.
+- *
+- * @see eina_init()
+- */
+-Eina_Bool
+-eina_counter_init(void)
+-{
+-#ifdef _WIN32
+-   if (!QueryPerformanceFrequency(&_eina_counter_frequency)) return EINA_FALSE;
+-#endif /* _WIN2 */
+-   return EINA_TRUE;
+-}
+-
+-/**
+- * @internal
+- * @brief Shut down the counter module.
+- *
+- * @return #EINA_TRUE on success, #EINA_FALSE on failure.
+- *
+- * This function shuts down the counter module set up by
+- * eina_counter_init(). It is called by eina_shutdown().
+- *
+- * @see eina_shutdown()
+- */
+-Eina_Bool
+-eina_counter_shutdown(void)
+-{
+-   return EINA_TRUE;
+-}
+-
+-/*============================================================================*
+  *                                   API                                      *
+  *============================================================================*/
+ 
+diff --git a/src/lib/eina/eina_inline_lock_win32.x b/src/lib/eina/eina_inline_lock_win32.x
+deleted file mode 100644
+index b3e8fbc..0000000
+--- a/src/lib/eina/eina_inline_lock_win32.x
++++ /dev/null
+@@ -1,610 +0,0 @@
+-/* EINA - EFL data type library
+- * Copyright (C) 2011 Vincent Torri
+- *
+- * This library is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU Lesser General Public
+- * License as published by the Free Software Foundation; either
+- * version 2.1 of the License, or (at your option) any later version.
+- *
+- * This library is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+- * Lesser General Public License for more details.
+- *
+- * You should have received a copy of the GNU Lesser General Public
+- * License along with this library;
+- * if not, see <http://www.gnu.org/licenses/>.
+- */
+-
+-#ifndef EINA_INLINE_LOCK_WIN32_X_
+-#define EINA_INLINE_LOCK_WIN32_X_
+-
+-#ifndef WIN32_LEAN_AND_MEAN
+-# define WIN32_LEAN_AND_MEAN
+-#endif
+-#include <windows.h>
+-#undef WIN32_LEAN_AND_MEAN
+-
+-/** @privatesection @{ */
+-typedef CRITICAL_SECTION       Eina_Lock;
+-typedef struct _Eina_Condition Eina_Condition;
+-typedef struct _Eina_RWLock    Eina_RWLock;
+-typedef DWORD                  Eina_TLS;
+-typedef HANDLE                 Eina_Semaphore;
+-typedef Eina_Lock              Eina_Spinlock;
+-
+-#if _WIN32_WINNT >= 0x0600
+-struct _Eina_Condition
+-{
+-   CRITICAL_SECTION  *mutex;      /**< The locking mechanism for this condition variable */
+-   CONDITION_VARIABLE condition;  /**< The condition variable */
+-};
+-
+-struct _Eina_RWLock
+-{
+-   SRWLOCK  mutex;               /**< The locking mechanism */
+-
+-   Eina_Bool is_read_mode : 1;   /**< Indicates if the lock is a read lock */
+-};
+-#else
+-struct _Eina_Condition
+-{
+-   int               waiters_count;       /**< The count of threads that are waiting on this condition */
+-   CRITICAL_SECTION  waiters_count_lock;  /**< The locking mechanism for the waiters_count member */
+-   CRITICAL_SECTION *mutex;               /**< The locking mechanism for the condition */
+-   HANDLE            semaphore;           /**< Semaphore used to coordinate waiters */
+-   HANDLE            waiters_done;        /**< Event to trigger when all the waiters are done */
+-   Eina_Bool         was_broadcast;       /**< Indicates whether this condition has signalled its waiters */
+-};
+-
+-struct _Eina_RWLock
+-{
+-   LONG           readers_count;  /**< The number of readers waiting for locks */
+-   LONG           writers_count;  /**< The number of writers waiting for locks */
+-   int            readers;        /**< The number of readers that have locks */
+-   int            writers;        /**< The number of writers that have locks */
+-
+-   Eina_Lock      mutex;          /**< The locking mechanism */
+-   Eina_Condition cond_read;      /**< The condition for readers */
+-   Eina_Condition cond_write;     /**< The condition for writers */
+-};
+-#endif
+-/** @} privatesection */
+-
+-EAPI extern Eina_Bool _eina_threads_activated;
+-EAPI extern Eina_Bool _eina_thread_tls_cb_register(Eina_TLS key, Eina_TLS_Delete_Cb cb);
+-EAPI extern Eina_Bool _eina_thread_tls_cb_unregister(Eina_TLS key);
+-EAPI extern Eina_Bool _eina_thread_tls_key_add(Eina_TLS key);
+-
+-
+-static inline Eina_Bool
+-eina_lock_new(Eina_Lock *mutex)
+-{
+-   InitializeCriticalSection(mutex);
+-
+-   return EINA_TRUE;
+-}
+-
+-static inline void
+-eina_lock_free(Eina_Lock *mutex)
+-{
+-   DeleteCriticalSection(mutex);
+-}
+-
+-static inline Eina_Lock_Result
+-eina_lock_take(Eina_Lock *mutex)
+-{
+-#ifdef EINA_HAVE_ON_OFF_THREADS
+-  if (!_eina_threads_activated) return EINA_LOCK_SUCCEED;
+-#endif
+-
+-   EnterCriticalSection(mutex);
+-
+-   return EINA_LOCK_SUCCEED;
+-}
+-
+-static inline Eina_Lock_Result
+-eina_lock_take_try(Eina_Lock *mutex)
+-{
+-#ifdef EINA_HAVE_ON_OFF_THREADS
+-   if (!_eina_threads_activated) return EINA_LOCK_SUCCEED;
+-#endif
+-
+-   return TryEnterCriticalSection(mutex) == 0 ? EINA_LOCK_FAIL : EINA_LOCK_SUCCEED;
+-}
+-
+-static inline Eina_Lock_Result
+-eina_lock_release(Eina_Lock *mutex)
+-{
+-#ifdef EINA_HAVE_ON_OFF_THREADS
+-   if (!_eina_threads_activated) return EINA_LOCK_SUCCEED;
+-#endif
+-
+-   LeaveCriticalSection(mutex);
+-
+-   return EINA_LOCK_SUCCEED;
+-}
+-
+-static inline void
+-eina_lock_debug(const Eina_Lock *mutex)
+-{
+-   (void)mutex;
+-}
+-
+-static inline Eina_Bool
+-eina_condition_new(Eina_Condition *cond, Eina_Lock *mutex)
+-{
+-   cond->mutex = mutex;
+-#if _WIN32_WINNT >= 0x0600
+-   InitializeConditionVariable(&cond->condition);
+-#else
+-   cond->waiters_count = 0;
+-   cond->was_broadcast = EINA_FALSE;
+-   cond->semaphore = CreateSemaphore(NULL,       // no security
+-                                     0,          // initially 0
+-                                     0x7fffffff, // max count
+-                                     NULL);      // unnamed
+-   if (!cond->semaphore)
+-     return EINA_FALSE;
+-
+-   InitializeCriticalSection(&cond->waiters_count_lock);
+-
+-   cond->waiters_done = CreateEvent(NULL,  // no security
+-                                    FALSE, // auto-reset
+-                                    FALSE, // non-signaled initially
+-                                    NULL); // unnamed
+-   if (!cond->waiters_done)
+-     {
+-        CloseHandle(cond->semaphore);
+-        return EINA_FALSE;
+-     }
+-#endif
+-
+-   return EINA_TRUE;
+-}
+-
+-static inline void
+-eina_condition_free(Eina_Condition *cond)
+-{
+-#if _WIN32_WINNT >= 0x0600
+-   /* Nothing to do */
+-   (void)cond;
+-#else
+-   CloseHandle(cond->waiters_done);
+-   DeleteCriticalSection(&cond->waiters_count_lock);
+-   CloseHandle(cond->semaphore);
+-#endif
+-}
+-
+-static inline Eina_Bool
+-_eina_condition_internal_timedwait(Eina_Condition *cond, DWORD t)
+-{
+-#if _WIN32_WINNT >= 0x0600
+-   SleepConditionVariableCS(&cond->condition, cond->mutex, t);
+-#else
+-   DWORD ret;
+-   Eina_Bool last_waiter;
+-
+-   /* Avoid race conditions. */
+-   EnterCriticalSection(&cond->waiters_count_lock);
+-   cond->waiters_count++;
+-   LeaveCriticalSection(&cond->waiters_count_lock);
+-
+-   /*
+-    * This call atomically releases the mutex and waits on the
+-    * semaphore until <pthread_cond_signal> or <pthread_cond_broadcast>
+-    * are called by another thread.
+-    */
+-   ret = SignalObjectAndWait(cond->mutex, cond->semaphore, t, FALSE);
+-   if (ret == WAIT_FAILED)
+-     return EINA_FALSE;
+-
+-   /* Reacquire lock to avoid race conditions. */
+-   EnterCriticalSection(&cond->waiters_count_lock);
+-
+-   /* We're no longer waiting... */
+-   cond->waiters_count--;
+-
+-   /* Check to see if we're the last waiter after <pthread_cond_broadcast>. */
+-   last_waiter = (cond->was_broadcast) && (cond->waiters_count == 0);
+-
+-   LeaveCriticalSection(&cond->waiters_count_lock);
+-
+-   /*
+-    * If we're the last waiter thread during this particular broadcast
+-    * then let all the other threads proceed.
+-    */
+-  if (last_waiter)
+-    {
+-       /*
+-        * This call atomically signals the <waiters_done_> event and waits until
+-        * it can acquire the <external_mutex>.  This is required to ensure fairness.
+-        */
+-       ret = SignalObjectAndWait(cond->waiters_done, cond->mutex, t, FALSE);
+-       if (ret == WAIT_FAILED)
+-         return EINA_FALSE;
+-    }
+-  else
+-    {
+-       /*
+-        * Always regain the external mutex since that's the guarantee we
+-        * give to our callers.
+-        */
+-       ret = WaitForSingleObject(cond->mutex, t);
+-       if (ret == WAIT_FAILED)
+-         return EINA_FALSE;
+-    }
+-#endif
+-
+-   return EINA_TRUE;
+-}
+-
+-static inline Eina_Bool
+-eina_condition_timedwait(Eina_Condition *cond, double val)
+-{
+-   return _eina_condition_internal_timedwait(cond, (DWORD)(val * 1000));
+-}
+-
+-static inline Eina_Bool
+-eina_condition_wait(Eina_Condition *cond)
+-{
+-   return _eina_condition_internal_timedwait(cond, INFINITE);
+-}
+-
+-static inline Eina_Bool
+-eina_condition_broadcast(Eina_Condition *cond)
+-{
+-#if _WIN32_WINNT >= 0x0600
+-   WakeAllConditionVariable(&cond->condition);
+-   return EINA_TRUE;
+-#else
+-   Eina_Bool have_waiters;
+-
+-   /*
+-    * This is needed to ensure that <waiters_count_> and <was_broadcast_> are
+-    * consistent relative to each other.
+-    */
+-   EnterCriticalSection(&cond->waiters_count_lock);
+-   have_waiters = EINA_FALSE;
+-
+-   if (cond->waiters_count > 0)
+-     {
+-        /*
+-         * We are broadcasting, even if there is just one waiter...
+-         * Record that we are broadcasting, which helps optimize
+-         * <pthread_cond_wait> for the non-broadcast case.
+-         */
+-        cond->was_broadcast = EINA_TRUE;
+-        have_waiters = EINA_TRUE;
+-     }
+-
+-   if (have_waiters)
+-     {
+-        DWORD ret;
+-
+-        /* Wake up all the waiters atomically. */
+-        ret = ReleaseSemaphore(cond->semaphore, cond->waiters_count, 0);
+-        LeaveCriticalSection(&cond->waiters_count_lock);
+-        if (!ret) return EINA_FALSE;
+-
+-        /*
+-         * Wait for all the awakened threads to acquire the counting
+-         * semaphore.
+-         */
+-        ret = WaitForSingleObject(cond->waiters_done, INFINITE);
+-        if (ret == WAIT_FAILED)
+-          return EINA_FALSE;
+-        /*
+-         * This assignment is okay, even without the <waiters_count_lock_> held
+-         * because no other waiter threads can wake up to access it.
+-         */
+-        cond->was_broadcast = EINA_FALSE;
+-     }
+-   else
+-     LeaveCriticalSection(&cond->waiters_count_lock);
+-
+-   return EINA_TRUE;
+-#endif
+-}
+-
+-static inline Eina_Bool
+-eina_condition_signal(Eina_Condition *cond)
+-{
+-#if _WIN32_WINNT >= 0x0600
+-   WakeConditionVariable(&cond->condition);
+-#else
+-   Eina_Bool have_waiters;
+-
+-   EnterCriticalSection(&cond->waiters_count_lock);
+-   have_waiters = (cond->waiters_count > 0);
+-   LeaveCriticalSection(&cond->waiters_count_lock);
+-
+-   /* If there aren't any waiters, then this is a no-op. */
+-  if (have_waiters)
+-    {
+-       if (!ReleaseSemaphore(cond->semaphore, 1, 0))
+-         return EINA_FALSE;
+-    }
+-#endif
+-
+-   return EINA_TRUE;
+-}
+-
+-static inline Eina_Bool
+-eina_rwlock_new(Eina_RWLock *mutex)
+-{
+-#if _WIN32_WINNT >= 0x0600
+-   InitializeSRWLock(&mutex->mutex);
+-   return EINA_TRUE;
+-#else
+-   if (!eina_lock_new(&(mutex->mutex))) return EINA_FALSE;
+-   if (!eina_condition_new(&(mutex->cond_read), &(mutex->mutex)))
+-     goto on_error1;
+-   if (!eina_condition_new(&(mutex->cond_write), &(mutex->mutex)))
+-     goto on_error2;
+-
+-   mutex->readers_count = 0;
+-   mutex->writers_count = 0;
+-   mutex->readers = 0;
+-   mutex->writers = 0;
+-
+-   return EINA_TRUE;
+-
+- on_error2:
+-   eina_condition_free(&(mutex->cond_read));
+- on_error1:
+-   eina_lock_free(&(mutex->mutex));
+-   return EINA_FALSE;
+-#endif
+-}
+-
+-static inline void
+-eina_rwlock_free(Eina_RWLock *mutex)
+-{
+-#if _WIN32_WINNT >= 0x0600
+-   (void)mutex;
+-#else
+-   eina_condition_free(&(mutex->cond_read));
+-   eina_condition_free(&(mutex->cond_write));
+-   eina_lock_free(&(mutex->mutex));
+-#endif
+-}
+-
+-static inline Eina_Lock_Result
+-eina_rwlock_take_read(Eina_RWLock *mutex)
+-{
+-#if _WIN32_WINNT >= 0x0600
+-   AcquireSRWLockShared(&mutex->mutex);
+-   mutex->is_read_mode = EINA_TRUE;
+-#else
+-   DWORD res = 0;
+-
+-   if (eina_lock_take(&(mutex->mutex)) == EINA_LOCK_FAIL)
+-     return EINA_LOCK_FAIL;
+-
+-   if (mutex->writers)
+-     {
+-        mutex->readers_count++;
+-        while (mutex->writers)
+-          {
+-             EnterCriticalSection(&mutex->cond_write.waiters_count_lock);
+-             mutex->cond_read.waiters_count++;
+-             LeaveCriticalSection(&mutex->cond_write.waiters_count_lock);
+-             res = WaitForSingleObject(mutex->cond_write.semaphore, INFINITE);
+-             if (res != WAIT_OBJECT_0) break;
+-          }
+-        mutex->readers_count--;
+-     }
+-   if (res == 0)
+-     mutex->readers++;
+-   eina_lock_release(&(mutex->mutex));
+-#endif
+-
+-   return EINA_LOCK_SUCCEED;
+-}
+-
+-static inline Eina_Lock_Result
+-eina_rwlock_take_write(Eina_RWLock *mutex)
+-{
+-#if _WIN32_WINNT >= 0x0600
+-   AcquireSRWLockExclusive(&mutex->mutex);
+-   mutex->is_read_mode = EINA_FALSE;
+-#else
+-   DWORD res = 0;
+-
+-   if (eina_lock_take(&(mutex->mutex)) == EINA_LOCK_FAIL)
+-     return EINA_LOCK_FAIL;
+-
+-   if (mutex->writers || mutex->readers > 0)
+-     {
+-        mutex->writers_count++;
+-        while (mutex->writers || mutex->readers > 0)
+-          {
+-             EnterCriticalSection(&mutex->cond_write.waiters_count_lock);
+-             mutex->cond_read.waiters_count++;
+-             LeaveCriticalSection(&mutex->cond_write.waiters_count_lock);
+-             res = WaitForSingleObject(mutex->cond_write.semaphore, INFINITE);
+-             if (res != WAIT_OBJECT_0) break;
+-          }
+-        mutex->writers_count--;
+-     }
+-   if (res == 0) mutex->writers = 1;
+-   eina_lock_release(&(mutex->mutex));
+-#endif
+-
+-   return EINA_LOCK_SUCCEED;
+-}
+-
+-static inline Eina_Lock_Result
+-eina_rwlock_release(Eina_RWLock *mutex)
+-{
+-#if _WIN32_WINNT >= 0x0600
+-   if (mutex->is_read_mode)
+-     ReleaseSRWLockShared(&mutex->mutex);
+-   else
+-     ReleaseSRWLockExclusive(&mutex->mutex);
+-#else
+-   if (eina_lock_take(&(mutex->mutex)) == EINA_LOCK_FAIL)
+-     return EINA_LOCK_FAIL;
+-
+-   if (mutex->writers)
+-     {
+-        mutex->writers = 0;
+-        if (mutex->readers_count == 1)
+-          {
+-             EnterCriticalSection(&mutex->cond_read.waiters_count_lock);
+-             if (mutex->cond_read.waiters_count > 0)
+-               ReleaseSemaphore(mutex->cond_read.semaphore, 1, 0);
+-             LeaveCriticalSection(&mutex->cond_read.waiters_count_lock);
+-          }
+-        else if (mutex->readers_count > 0)
+-          eina_condition_broadcast(&(mutex->cond_read));
+-        else if (mutex->writers_count > 0)
+-          {
+-             EnterCriticalSection (&mutex->cond_write.waiters_count_lock);
+-             if (mutex->cond_write.waiters_count > 0)
+-               ReleaseSemaphore(mutex->cond_write.semaphore, 1, 0);
+-             LeaveCriticalSection (&mutex->cond_write.waiters_count_lock);
+-          }
+-     }
+-   else if (mutex->readers > 0)
+-     {
+-        mutex->readers--;
+-        if (mutex->readers == 0 && mutex->writers_count > 0)
+-          {
+-             EnterCriticalSection (&mutex->cond_write.waiters_count_lock);
+-             if (mutex->cond_write.waiters_count > 0)
+-               ReleaseSemaphore(mutex->cond_write.semaphore, 1, 0);
+-             LeaveCriticalSection (&mutex->cond_write.waiters_count_lock);
+-          }
+-     }
+-   eina_lock_release(&(mutex->mutex));
+-#endif
+-
+-   return EINA_LOCK_SUCCEED;
+-}
+-
+-static inline Eina_Bool
+-eina_tls_cb_new(Eina_TLS *key, Eina_TLS_Delete_Cb delete_cb)
+-{
+-   if ((*key = TlsAlloc()) == TLS_OUT_OF_INDEXES)
+-      return EINA_FALSE;
+-   if (delete_cb)
+-     {
+-        if (!_eina_thread_tls_cb_register(*key, delete_cb))
+-          {
+-             TlsFree(*key);
+-             return EINA_FALSE;
+-          }
+-     }
+-   return EINA_TRUE;
+-}
+-
+-static inline Eina_Bool
+-eina_tls_new(Eina_TLS *key)
+-{
+-   return eina_tls_cb_new(key, NULL);
+-}
+-
+-static inline void
+-eina_tls_free(Eina_TLS key)
+-{
+-   _eina_thread_tls_cb_unregister(key);
+-   TlsFree(key);
+-}
+-
+-static inline void *
+-eina_tls_get(Eina_TLS key)
+-{
+-   return (void*)TlsGetValue(key);
+-}
+-
+-static inline Eina_Bool
+-eina_tls_set(Eina_TLS key, const void *data)
+-{
+-   if (TlsSetValue(key, (LPVOID)data) == 0)
+-      return EINA_FALSE;
+-   _eina_thread_tls_key_add(key);
+-   return EINA_TRUE;
+-}
+-
+-static inline Eina_Bool
+-eina_semaphore_new(Eina_Semaphore *sem, int count_init)
+-{
+-   if (!sem || (count_init <= 0))
+-     return EINA_FALSE;
+-
+-   *sem = CreateSemaphore(NULL, count_init, 32767, NULL);
+-   if (!*sem)
+-     return EINA_FALSE;
+-   return EINA_TRUE;
+-}
+-
+-static inline Eina_Bool
+-eina_semaphore_free(Eina_Semaphore *sem)
+-{
+-  if (!sem)
+-     return EINA_FALSE;
+-
+-  CloseHandle(*sem);
+-  return EINA_TRUE;
+-}
+-
+-static inline Eina_Bool
+-eina_semaphore_lock(Eina_Semaphore *sem)
+-{
+-   DWORD res;
+-
+-   if (!sem)
+-     return EINA_FALSE;
+-
+-   res = WaitForSingleObject(*sem, 0L);
+-   if (res == WAIT_OBJECT_0)
+-     return EINA_TRUE;
+-
+-   return EINA_FALSE;
+-}
+-
+-static inline Eina_Bool
+-eina_semaphore_release(Eina_Semaphore *sem, int count_release)
+-{
+-   if (!sem)
+-     return EINA_FALSE;
+-
+-   return ReleaseSemaphore(*sem, count_release, NULL) ? EINA_TRUE : EINA_FALSE;
+-}
+-
+-// FIXME: Implement proper spinlock = http://www.codeproject.com/Articles/184046/Spin-Lock-in-C
+-static inline Eina_Bool
+-eina_spinlock_new(Eina_Spinlock *spinlock)
+-{
+-   return eina_lock_new(spinlock);
+-}
+-
+-static inline Eina_Lock_Result
+-eina_spinlock_take(Eina_Spinlock *spinlock)
+-{
+-   return eina_lock_take(spinlock);
+-}
+-
+-static inline Eina_Lock_Result
+-eina_spinlock_take_try(Eina_Spinlock *spinlock)
+-{
+-   return eina_lock_take_try(spinlock);
+-}
+-
+-static inline Eina_Lock_Result
+-eina_spinlock_release(Eina_Spinlock *spinlock)
+-{
+-   return eina_lock_release(spinlock);
+-}
+-
+-static inline void
+-eina_spinlock_free(Eina_Spinlock *spinlock)
+-{
+-   eina_lock_free(spinlock);
+-}
+-
+-#include "eina_inline_lock_barrier.x"
+-
+-#endif
+diff --git a/src/lib/eina/eina_inline_private.h b/src/lib/eina/eina_inline_private.h
+index 752baa0..846081d 100644
+--- a/src/lib/eina/eina_inline_private.h
++++ b/src/lib/eina/eina_inline_private.h
+@@ -19,27 +19,14 @@
+ #ifndef EINA_INLINE_PRIVATE_H_
+ # define EINA_INLINE_PRIVATE_H_
+ 
+-#ifndef _WIN32
+ # include <time.h>
+ # include <sys/time.h>
+-#else
+-# define WIN32_LEAN_AND_MEAN
+-# include <windows.h>
+-# undef WIN32_LEAN_AND_MEAN
+-#endif /* _WIN2 */
+ 
+-#ifndef _WIN32
+ typedef struct timespec Eina_Nano_Time;
+-#else
+-typedef LARGE_INTEGER Eina_Nano_Time;
+-
+-extern LARGE_INTEGER _eina_counter_frequency;
+-#endif
+ 
+ static inline int
+ _eina_time_get(Eina_Nano_Time *tp)
+ {
+-#ifndef _WIN32
+ # if defined(CLOCK_PROCESS_CPUTIME_ID)
+    if (!clock_gettime(CLOCK_PROCESS_CPUTIME_ID, tp))
+      return 0;
+@@ -64,9 +51,6 @@ _eina_time_get(Eina_Nano_Time *tp)
+    tp->tv_nsec = tv.tv_usec * 1000L;
+ 
+    return 0;
+-#else
+-   return QueryPerformanceCounter(tp);
+-#endif /* _WIN2 */
+ }
+ 
+ static inline long int
+@@ -74,12 +58,7 @@ _eina_time_convert(Eina_Nano_Time *tp)
+ {
+   long int r;
+ 
+-#ifndef _WIN32
+   r = tp->tv_sec * 1000000000 + tp->tv_nsec;
+-#else
+-  r = (long int)(((long long int)tp->QuadPart * 1000000000ll) /
+-		 (long long int)_eina_counter_frequency.QuadPart);
+-#endif
+ 
+   return r;
+ }
+@@ -89,14 +68,8 @@ _eina_time_delta(Eina_Nano_Time *start, Eina_Nano_Time *end)
+ {
+   long int r;
+ 
+-#ifndef _WIN32
+   r = (end->tv_sec - start->tv_sec) * 1000000000 +
+     end->tv_nsec - start->tv_nsec;
+-#else
+-  r = (long int)(((long long int)(end->QuadPart - start->QuadPart)
+-		  * 1000000000LL)
+-		 / (long long int)_eina_counter_frequency.QuadPart);
+-#endif
+ 
+   return r;
+ }
+diff --git a/src/lib/eina/eina_lock.h b/src/lib/eina/eina_lock.h
+index 3aa49e2..06368a5 100644
+--- a/src/lib/eina/eina_lock.h
++++ b/src/lib/eina/eina_lock.h
+@@ -106,11 +106,7 @@ typedef enum
+ /** Type definition for deallocation callbacks for thread level sotrage data.  A simple function pointer. */
+ typedef void (*Eina_TLS_Delete_Cb)(void *ptr);
+ 
+-#ifdef _WIN32
+-# include "eina_inline_lock_win32.x"
+-#else
+-# include "eina_inline_lock_posix.x"
+-#endif
++#include "eina_inline_lock_posix.x"
+ 
+ /** A type definition for warning that a function was called from somewhere other than the EFL main loop. */
+ EAPI extern Eina_Error EINA_ERROR_NOT_MAIN_LOOP;
+diff --git a/src/lib/eina/eina_main.c b/src/lib/eina/eina_main.c
+index d4edb24..27711f1 100644
+--- a/src/lib/eina/eina_main.c
++++ b/src/lib/eina/eina_main.c
+@@ -60,7 +60,6 @@
+ #include "eina_list.h"
+ #include "eina_matrixsparse.h"
+ #include "eina_array.h"
+-#include "eina_counter.h"
+ #include "eina_benchmark.h"
+ #include "eina_magic.h"
+ #include "eina_rectangle.h"
+@@ -103,11 +102,7 @@ EAPI Eina_Error EINA_ERROR_NOT_MAIN_LOOP = 0;
+ EAPI unsigned int eina_seed = 0;
+ 
+ #ifdef EFL_HAVE_THREADS
+-# ifdef _WIN32
+-EAPI DWORD _eina_main_loop;
+-# else
+ EAPI pthread_t _eina_main_loop;
+-# endif
+ static pid_t _eina_pid;
+ #endif
+ 
+@@ -144,7 +139,6 @@ EAPI Eina_Inlist *_eina_tracking = NULL;
+    S(ustringshare);
+    S(matrixsparse);
+    S(convert);
+-   S(counter);
+    S(benchmark);
+    S(rectangle);
+    S(strbuf);
+@@ -189,7 +183,6 @@ static const struct eina_desc_setup _eina_desc_setup[] = {
+    S(ustringshare),
+    S(matrixsparse),
+    S(convert),
+-   S(counter),
+    S(benchmark),
+    S(rectangle),
+    S(strbuf),
+@@ -280,11 +273,7 @@ eina_init(void)
+      }
+ 
+ #ifdef EFL_HAVE_THREADS
+-# ifdef _WIN32
+-   _eina_main_loop = GetCurrentThreadId();
+-# else
+    _eina_main_loop = pthread_self();
+-# endif
+    _eina_pid = getpid();
+ #endif
+ 
+@@ -427,23 +416,10 @@ eina_main_loop_is(void)
+ #ifdef EFL_HAVE_THREADS
+   pid_t pid;
+ 
+-# ifdef _WIN32
+-   if (_eina_main_loop == GetCurrentThreadId())
+-     return EINA_TRUE;
+-# else
+    if (pthread_equal(_eina_main_loop, pthread_self()))
+      return EINA_TRUE;
+-# endif
+ 
+    pid = getpid();
+-# ifdef _WIN32
+-   if (pid != _eina_pid)
+-     {
+-        _eina_pid = pid;
+-        _eina_main_loop = GetCurrentThreadId();
+-        return EINA_TRUE;
+-     }
+-#else
+    if (pid != _eina_pid)
+      {
+         /* This is in case of a fork, but don't like the solution */
+@@ -452,7 +428,6 @@ eina_main_loop_is(void)
+         return EINA_TRUE;
+      }
+ #endif
+-#endif
+ 
+    return EINA_FALSE;
+ }
+@@ -463,11 +438,7 @@ eina_main_loop_define(void)
+ {
+ #ifdef EFL_HAVE_THREADS
+    _eina_pid = getpid();
+-# ifdef _WIN32
+-   _eina_main_loop = GetCurrentThreadId();
+-# else
+    _eina_main_loop = pthread_self();
+-# endif
+ #endif
+ }
+ 
+diff --git a/src/lib/eina/eina_thread.c b/src/lib/eina/eina_thread.c
+index d3a2963..952f65d 100644
+--- a/src/lib/eina/eina_thread.c
++++ b/src/lib/eina/eina_thread.c
+@@ -25,234 +25,11 @@
+ #include "eina_config.h"
+ #include "eina_thread.h"
+ #include "eina_sched.h"
+-#ifdef _WIN32
+-# include "eina_list.h"
+-# include "eina_lock.h"
+-#endif
+ 
+ /* undefs EINA_ARG_NONULL() so NULL checks are not compiled out! */
+ #include "eina_safety_checks.h"
+ 
+-#ifdef _WIN32
+-# define WIN32_LEAN_AND_MEAN
+-# include <windows.h>
+-# undef WIN32_LEAN_AND_MEAN
+-
+-#include <process.h>
+-
+-typedef struct _Eina_TLS_Cbs_Win32 Eina_TLS_Cbs_Win32;
+-struct _Eina_TLS_Cbs_Win32
+-{
+-   Eina_TLS key;
+-   Eina_TLS_Delete_Cb cb;
+-};
+-typedef struct _Eina_Thread_Win32 Eina_Thread_Win32;
+-struct _Eina_Thread_Win32
+-{
+-   HANDLE thread;
+-   void *(*func)(void *data);
+-   void *data;
+-   void *ret;
+-   Eina_List *tls_keys;
+-
+-   Eina_Thread index;
+-};
+-
+-/* FIXME: For the moment Eina_Thread is considered not
+-   thread safe, wondering if it's worth it */
+-static unsigned long int _current_index = 1; /* start from one as the main loop == 0 */
+-static Eina_List *_thread_pool = NULL;
+-static Eina_List *_thread_running = NULL;
+-static Eina_List *_tls_keys_cbs = NULL;
+-
+-static inline Eina_TLS_Cbs_Win32 *
+-_eina_thread_tls_cb_find(Eina_TLS key)
+-{
+-   Eina_TLS_Cbs_Win32 *cb;
+-   Eina_List *l;
+-
+-   EINA_LIST_FOREACH(_tls_keys_cbs, l, cb)
+-      if (cb->key == key)
+-        return cb;
+-
+-   return NULL;
+-}
+-
+-static inline void
+-_eina_thread_tls_keys_clean(Eina_Thread_Win32 *tw)
+-{
+-   void *data;
+-   Eina_TLS_Cbs_Win32 *cb;
+-
+-   EINA_LIST_FREE(tw->tls_keys, data)
+-     {
+-        Eina_TLS key = (Eina_TLS)(uintptr_t)data;
+-        cb = _eina_thread_tls_cb_find(key);
+-        if (cb)
+-          cb->cb(eina_tls_get(key));
+-     }
+-   tw->tls_keys = NULL;
+-}
+-
+-EAPI Eina_Bool
+-_eina_thread_tls_cb_register(Eina_TLS key, Eina_TLS_Delete_Cb cb)
+-{
+-   Eina_TLS_Cbs_Win32 *tls_cb = malloc(sizeof(Eina_TLS_Cbs_Win32));
+-   if (!cb) return EINA_FALSE;
+-
+-   tls_cb->key = key;
+-   tls_cb->cb = cb;
+-   _tls_keys_cbs = eina_list_append(_tls_keys_cbs, tls_cb);
+-
+-   return EINA_TRUE;
+-}
+-
+-EAPI Eina_Bool
+-_eina_thread_tls_cb_unregister(Eina_TLS key)
+-{
+-   Eina_TLS_Cbs_Win32 *cb = _eina_thread_tls_cb_find(key);
+-   if (!cb) return EINA_FALSE;
+-
+-   _tls_keys_cbs = eina_list_remove(_tls_keys_cbs, cb);
+-   free(cb);
+-
+-   return EINA_TRUE;
+-}
+-
+-EAPI Eina_Bool
+-_eina_thread_tls_key_add(Eina_TLS key)
+-{
+-   HANDLE t;
+-   Eina_Thread_Win32 *tw;
+-   Eina_List *l;
+-
+-   t = GetCurrentThread();
+-   EINA_LIST_FOREACH(_thread_running, l, tw)
+-      if (tw->thread == t)
+-        {
+-           void *data = (void *)(uintptr_t)key;
+-           if (!eina_list_data_find(tw->tls_keys, data))
+-             tw->tls_keys = eina_list_append(tw->tls_keys, data);
+-           return EINA_TRUE;
+-        }
+-
+-   return EINA_FALSE;
+-}
+-
+-static Eina_Thread_Win32 *
+-_eina_thread_win32_find(Eina_Thread index)
+-{
+-   Eina_Thread_Win32 *tw;
+-   Eina_List *l;
+-
+-   EINA_LIST_FOREACH(_thread_running, l, tw)
+-     if (tw->index == index)
+-       return tw;
+-   return NULL;
+-}
+-
+-static inline Eina_Thread
+-_eina_thread_self(void)
+-{
+-   HANDLE t;
+-   Eina_Thread_Win32 *tw;
+-   Eina_List *l;
+-
+-   t = GetCurrentThread();
+-   EINA_LIST_FOREACH(_thread_running, l, tw)
+-     if (tw->thread == t)
+-       return tw->index;
+-
+-   /* We assume main loop == 0 on Windows */
+-   return 0;
+-}
+-
+-static inline Eina_Bool
+-_eina_thread_equal(Eina_Thread t1, Eina_Thread t2)
+-{
+-   if (t1 == t2) return EINA_TRUE;
+-   return EINA_FALSE;
+-}
+-
+-static unsigned int WINAPI
+-_eina_thread_win32_cb(LPVOID lpParam)
+-{
+-   Eina_Thread_Win32 *tw = lpParam;
+-
+-   tw->ret = tw->func(tw->data);
+-
+-   return 0;
+-}
+-
+-static inline Eina_Bool
+-_eina_thread_create(Eina_Thread *t,
+-                          int affinity,
+-                          void *(*func)(void *data),
+-                          const void *data)
+-{
+-   Eina_Thread_Win32 *tw;
+-
+-   tw = eina_list_data_get(_thread_pool);
+-   _thread_pool = eina_list_remove_list(_thread_pool, _thread_pool);
+-
+-   if (!tw)
+-     {
+-        tw = malloc(sizeof (Eina_Thread_Win32));
+-        if (!tw) goto on_error;
+-
+-        do {
+-           tw->index = _current_index++;
+-        } while (tw->index == 0); /* prevent having a "false" main loop */
+-     }
+-
+-   tw->func = func;
+-   tw->data = (void *)data;
+-   tw->tls_keys = NULL;
+-
+-   tw->thread = (HANDLE)_beginthreadex(NULL, 0, _eina_thread_win32_cb, tw, 0, NULL);
+-   if (!tw->thread) goto on_error;
+-
+-   /* affinity is an hint, if we fail, we continue without */
+-   if (affinity >= 0)
+-     SetThreadAffinityMask(tw->thread, 1 << affinity);
+-
+-   _thread_running = eina_list_append(_thread_running, tw);
+-
+-   *t = tw->index;
+-   return EINA_TRUE;
+-
+- on_error:
+-   _thread_pool = eina_list_append(_thread_pool, tw);
+-   return EINA_FALSE;
+-}
+-
+-static inline void *
+-_eina_thread_join(Eina_Thread t)
+-{
+-   Eina_Thread_Win32 *tw;
+-   void *ret;
+-
+-   tw = _eina_thread_win32_find(t);
+-   if (!tw) return NULL;
+-
+-   WaitForSingleObject(tw->thread, INFINITE);
+-   CloseHandle(tw->thread);
+-
+-   ret = tw->ret;
+-
+-   tw->ret = NULL;
+-   tw->thread = NULL;
+-   tw->func = NULL;
+-   tw->data = NULL;
+-   _eina_thread_tls_keys_clean(tw);
+-
+-   _thread_running = eina_list_remove(_thread_running, tw);
+-   _thread_pool = eina_list_append(_thread_pool, _thread_pool);
+-
+-   return ret;
+-}
+-
+-#elif defined(EFL_HAVE_POSIX_THREADS)
++#if defined(EFL_HAVE_POSIX_THREADS)
+ # include <pthread.h>
+ # include <errno.h>
+ 
+-- 
+1.8.4
+

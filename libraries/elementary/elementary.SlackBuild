@@ -103,7 +103,7 @@ LIBS="${LIBS}" \
   ${WITH_ELM_PREFS_CC} \
   ${DISABLE_STATIC}
 
-make -j4 V=1 || make V=1
+make -j4 || make V=1
 make install DESTDIR=$PKG
 
 find $PKG | xargs file | egrep -e "executable|shared object" \
