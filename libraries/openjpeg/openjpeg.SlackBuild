@@ -47,6 +47,8 @@ find -L . \
  \( -perm 666 -o -perm 664 -o -perm 640 -o -perm 600 -o -perm 444 \
  -o -perm 440 -o -perm 400 \) -exec chmod 644 {} \;
 
+sed -i '/typedef SSIZE_T ssize_t;/ d' src/lib/openjpip/sock_manager.c
+
 mkdir -p build
 cd build
   cmake \
@@ -61,7 +63,9 @@ cd build
     -DOPENJPEG_INSTALL_DOC_DIR="doc/$PRGNAM-$VERSION/" \
     -DBUILD_JPWL:BOOL=ON \
     -DBUILD_MJ2:BOOL=ON \
-    -DBUILD_JPIP:BOOL=OFF \
+    -DBUILD_JPIP:BOOL=ON \
+    -DBUILD_JP3D:BOOL=ON \
+    -DBUILD_PKGCONFIG_FILES:BOOL=ON \
     -DCMAKE_SYSTEM_NAME=Windows \
     -DCMAKE_C_COMPILER=${HOST_TRIPLET}-gcc \
     -DCMAKE_FIND_ROOT_PATH=/${PREFIX} \
