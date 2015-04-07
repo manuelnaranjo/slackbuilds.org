@@ -1,0 +1,30 @@
+--- a/src/lib/ecore_win32/ecore_win32_dnd.c	2015-04-06 15:18:58.684707484 +0200
++++ b/src/lib/ecore_win32/ecore_win32_dnd.c	2015-04-06 15:23:15.323875295 +0200
+@@ -61,14 +61,21 @@
+ EAPI int
+ ecore_win32_dnd_init()
+ {
++   HRESULT res;
++
+    if (_ecore_win32_dnd_init_count > 0)
+-     {
+-	_ecore_win32_dnd_init_count++;
+-	return _ecore_win32_dnd_init_count;
+-     }
++   {
++      _ecore_win32_dnd_init_count++;
++      return _ecore_win32_dnd_init_count;
++   }
++
++   res = OleInitialize(NULL);
+ 
+-   if (OleInitialize(NULL) != S_OK)
+-     return 0;
++   if ((res != S_OK) && (res != S_FALSE))
++   {
++      EINA_LOG_ERR("OleInitialize(NULL) returned %ld.", (long) res);
++      return 0;
++   }
+ 
+    _ecore_win32_dnd_init_count++;
+ 

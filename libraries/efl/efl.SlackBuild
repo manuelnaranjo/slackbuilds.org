@@ -55,6 +55,10 @@ case "${VERSION}" in
 esac
 
 #!PATCH
+patch -p1 --verbose \
+  < ${CWD}/allow_oleinitialize_to_return_S_FALSE.patch
+
+#!PATCH
 sed -i \
   '/\/..\/lib\/ecore_evas\/engines/ s/lib/lib'"${LIBDIRSUFFIX}"'/g' \
   src/lib/ecore_evas/ecore_evas_module.c
