@@ -57,57 +57,59 @@ PYVER=${VERSION::3}
 set -eu
 
 # Location for Python site-packages:
-SITEPK=$PKG/usr/lib${LIBDIRSUFFIX}/python${PYVER}/site-packages
+SITEPK=$PKG/${PREFIX}/lib${LIBDIRSUFFIX}/python${PYVER}/site-packages
 # same as above without $PKG
-TOOLSDIR=/usr/lib${LIBDIRSUFFIX}/python${PYVER}/site-packages
-
+TOOLSDIR=/${PREFIX}/lib${LIBDIRSUFFIX}/python${PYVER}/site-packages
 rm -rf $PKG
 mkdir -p $TMP $PKG $OUTPUT
 cd $TMP
-rm -rf Python-$VERSION
-tar xvf $CWD/Python-$VERSION.tar.xz
-cd Python-$VERSION
 
-patch -p1 -i $CWD/patches/python3.readline.set_pre_input_hook.diff
-# We don't want a large libpython*.a:
-patch -p1 -i $CWD/patches/python3.no-static-library.diff
+if [ ! -d Python-$VERSION ]; then
+    rm -rf Python-$VERSION
+    tar xvf $CWD/Python-$VERSION.tar.xz
+    cd Python-$VERSION
 
-if [ "$ARCH" = "x86_64" ]; then
-  # Install to lib64 instead of lib:
-  patch -p1 -i $CWD/patches/python3.x86_64.diff
+    for i in $CWD/mingw-patches/*.patch ; do
+        patch -p1 -i ${i}
+    done
+
+    # Fix python3 path in cgi.py.
+    sed -i "1s|^#.*/usr/local/bin/python|#!${PREFIX}/bin/python3|" Lib/cgi.py
+
+    # Isolate ensurepip from site-packages, otherwise pip won't be installed if
+    # there's Python3 on this system with pip already in site-packages.
+    sed -i 's/-m ensurepip/-Sm ensurepip/' Makefile.pre.in
+
+    autoconf
+
+    chown -R root:root .
+    find -L . \
+        \( -perm 777 -o -perm 775 -o -perm 750 -o -perm 711 -o -perm 555 \
+        -o -perm 511 \) -exec chmod 755 {} \; -o \
+        \( -perm 666 -o -perm 664 -o -perm 640 -o -perm 600 -o -perm 444 \
+        -o -perm 440 -o -perm 400 \) -exec chmod 644 {} \;
 fi
 
-# Fix python3 path in cgi.py.
-sed -i '1s|^#.*/usr/local/bin/python|#!/usr/bin/python3|' Lib/cgi.py
-
-# Isolate ensurepip from site-packages, otherwise pip won't be installed if
-# there's Python3 on this system with pip already in site-packages.
-sed -i 's/-m ensurepip/-Sm ensurepip/' Makefile.pre.in
-
-chown -R root:root .
-find -L . \
- \( -perm 777 -o -perm 775 -o -perm 750 -o -perm 711 -o -perm 555 \
-  -o -perm 511 \) -exec chmod 755 {} \; -o \
- \( -perm 666 -o -perm 664 -o -perm 640 -o -perm 600 -o -perm 444 \
- -o -perm 440 -o -perm 400 \) -exec chmod 644 {} \;
+cd ${TMP}/Python-${VERSION}
 
 ./configure \
-  --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --mandir=/usr/man \
-  --docdir=/usr/doc/$PRGNAM-$VERSION \
+  --prefix=/${PREFIX} \
+  --host=${HOST_TRIPLET} \
+  --libdir=/${PREFIX}/lib${LIBDIRSUFFIX} \
+  --mandir=/${PREFIX}/man \
+  --docdir=/${PREFIX}/doc/$PRGNAM-$VERSION \
   --with-threads \
   --enable-ipv6 \
   --enable-shared \
   --with-system-expat \
   --with-system-ffi \
-  --build=$ARCH-slackware-linux
+  --build=${BUILD_TRIPLET}
 
 make
 make install DESTDIR=$PKG
 
 # Remove to avoid overwriting a copy from Python2.
-rm -f $PKG/usr/bin/2to3
+rm -f $PKG/${PREFIX}/bin/2to3
 
 # We'll install the python-tools under site-packages:
 mkdir -p $SITEPK
@@ -116,24 +118,27 @@ cp -a Tools/* $SITEPK
 rm -f $SITEPK/setuptools/*.exe
 
 # Install docs:
-mkdir -p $PKG/usr/doc/$PRGNAM-$VERSION
-cp -a README LICENSE Misc $PKG/usr/doc/$PRGNAM-$VERSION
-mv $SITEPK/README $PKG/usr/doc/$PRGNAM-$VERSION/README.python-tools
-( cd $PKG/usr/doc/$PRGNAM-$VERSION ; ln -sf $TOOLSDIR Tools )
+mkdir -p $PKG/${PREFIX}/doc/$PRGNAM-$VERSION
+cp -a README LICENSE Misc $PKG/${PREFIX}/doc/$PRGNAM-$VERSION
+mv $SITEPK/README $PKG/${PREFIX}/doc/$PRGNAM-$VERSION/README.python-tools
+( cd $PKG/${PREFIX}/doc/$PRGNAM-$VERSION ; ln -sf $TOOLSDIR Tools )
 if [ -e "$CWD/python-$VERSION-docs-html.tar.bz2" ]; then
   tar xf $CWD/python-$VERSION-docs-html.tar.bz2
-  mv python-$VERSION-docs-html $PKG/usr/doc/$PRGNAM-$VERSION/html
-  chown -R root:root $PKG/usr/doc/$PRGNAM-$VERSION/html
+  mv python-$VERSION-docs-html $PKG/${PREFIX}/doc/$PRGNAM-$VERSION/html
+  chown -R root:root $PKG/${PREFIX}/doc/$PRGNAM-$VERSION/html
 fi
 
-find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
-  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ${HOST_EXE_FORMAT} \
+  | cut -f 1 -d : | xargs ${HOST_STRIP} --strip-unneeded 2> /dev/null || true
 
-find $PKG/usr/man -type f -exec gzip -9 {} \;
-for i in $( find $PKG/usr/man -type l ) ; do ln -s $( readlink $i ).gz $i.gz ; rm $i ; done
+find $PKG/${PREFIX}/man -type f -exec gzip -9 {} \;
+for i in $( find $PKG/${PREFIX}/man -type l ) ; do ln -s $( readlink $i ).gz $i.gz ; rm $i ; done
 
-mkdir -p $PKG/install
-cat $CWD/slack-desc > $PKG/install/slack-desc
-
-cd $PKG
-/sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.${PKGTYPE:-tgz}
+cat ${CWD}/${PKGNAM}.yypkg.script | sed \
+  -e "s/%{PKG}/${PKGNAM}/" \
+  -e "s/%{HST}/${HOST_TRIPLET}/" \
+  -e "s/%{TGT}//" \
+  -e "s/%{VER}/${VERSION}/" \
+  -e "s/%{BUILD}/${BUILD}/" \
+  -e "s/%{DESCR}/${DESCR:-"No description"}/" \
+  | yypkg --makepkg --output ${YYOUTPUT} --script - --directory "${PKG}/${PREFIX}"

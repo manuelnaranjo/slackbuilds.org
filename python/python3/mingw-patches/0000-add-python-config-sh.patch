@@ -1,0 +1,13 @@
+diff -urN a/configure.ac b/configure.ac
+--- a/configure.ac	2012-09-29 09:00:50.000000000 +0100
++++ b/configure.ac	2013-04-24 23:35:28.927673540 +0100
+diff -urN a/Makefile.pre.in b/Makefile.pre.in
+--- a/Makefile.pre.in	2012-09-29 09:00:41.000000000 +0100
++++ b/Makefile.pre.in	2013-04-24 23:35:28.924673520 +0100
+@@ -1171,5 +1173,6 @@
+ 	$(INSTALL_SCRIPT) $(srcdir)/Modules/makesetup $(DESTDIR)$(LIBPL)/makesetup
+ 	$(INSTALL_SCRIPT) $(srcdir)/install-sh $(DESTDIR)$(LIBPL)/install-sh
+ 	$(INSTALL_SCRIPT) python-config $(DESTDIR)$(BINDIR)/python$(LDVERSION)-config
++	$(INSTALL_SCRIPT) python-config $(DESTDIR)$(BINDIR)/python-config.sh
+ 	@if [ -s Modules/python.exp -a \
+ 		"`echo $(MACHDEP) | sed 's/^\(...\).*/\1/'`" = "aix" ]; then \
