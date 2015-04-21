@@ -99,7 +99,7 @@ cd ${TMP}/Python-${VERSION}
   --mandir=/${PREFIX}/man \
   --docdir=/${PREFIX}/doc/$PRGNAM-$VERSION \
   --with-threads \
-  --enable-ipv6 \
+  --disable-ipv6 \
   --enable-shared \
   --with-system-expat \
   --with-system-ffi \
