@@ -27,14 +27,6 @@ VERSION=${VERSION:-2.7.5}
 BUILD=${BUILD:-1}
 NUMJOBS=${NUMBJOBS:--j7}
 
-if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) ARCH=i486 ;;
-    arm*) ARCH=arm ;;
-       *) ARCH=$( uname -m ) ;;
-  esac
-fi
-
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
@@ -44,15 +36,12 @@ export LANG="en"
 
 # Don't set any SLKCFLAGS here, or OPT="$SLKCFLAGS" before the ./configure.
 # Python gets the compile options right without any help.
-if [ "$ARCH" = "i486" ]; then
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "i686" ]; then
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "x86_64" ]; then
-  LIBDIRSUFFIX="64"
+if [[ "$YYPREFIX" == *32* ]]; then
+    LIBDIRSUFFIX=""
 else
-  LIBDIRSUFFIX=""
+    LIBDIRSUFFIX="64"
 fi
+
 
 PYVER="2.7"
 
@@ -67,32 +56,24 @@ rm -rf $PKG
 mkdir -p $TMP $PKG $OUTPUT
 cd $TMP
 
-if [ ! -d Python-${VERSION} ]; then
-    rm -rf Python-$VERSION
-    tar xvf $CWD/Python-$VERSION.tar.xz
+rm -rf Python-$VERSION
+tar xvf $CWD/Python-$VERSION.tar.xz
 
-    pushd Python-${VERSION}
-    #! PATCHES
-    case "${HOST_TRIPLET}" in
-        *-*-mingw*)
-            for i in $CWD/patches/*.patch ; do
-                patch -p1 -i ${i}
-            done
+cd Python-${VERSION}
+#! PATCHES
+case "${HOST_TRIPLET}" in
+    *-*-mingw*)
+        for i in $CWD/patches/*.patch ; do
+            patch -p1 -i ${i}
+        done
 
-            #rm -rf Modules/expat
-            #rm -rf Modules/_ctypes/libffi*
-            #rm -rf Modules/zlib
-            autoheader
-            autoconf
-            rm -rf autom4te.cache
-            ;;
-        *)
-            ;;
-    esac
-    popd
-fi
-
-cd Python-$VERSION
+        autoheader
+        autoconf
+        rm -rf autom4te.cache
+        ;;
+    *)
+        ;;
+esac
 
 # We have to use rpath here as the library which the
 # chown -R root:root .
@@ -102,20 +83,18 @@ cd Python-$VERSION
 #  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
 #  -exec chmod 644 {} \;
 
-if [ ! -f Makefile ]; then
-    ./configure \
-        --prefix=/${PREFIX} \
-        --host=${HOST_TRIPLET} \
-        --libdir=/${PREFIX}/lib${LIBDIRSUFFIX} \
-        --mandir=/${PREFIX}/man \
-        --docdir=/${PREFIX}/doc/$PKGNAM-$VERSION \
-        --with-threads \
-        --disable-ipv6 \
-        --enable-shared \
-        --with-system-expat \
-        --with-system-ffi \
-        --build=${BUILD_TRIPLET}
-fi
+./configure \
+    --prefix=/${PREFIX} \
+    --host=${HOST_TRIPLET} \
+    --libdir=/${PREFIX}/lib${LIBDIRSUFFIX} \
+    --mandir=/${PREFIX}/man \
+    --docdir=/${PREFIX}/doc/$PKGNAM-$VERSION \
+    --with-threads \
+    --disable-ipv6 \
+    --enable-shared \
+    --with-system-expat \
+    --with-system-ffi \
+    --build=${BUILD_TRIPLET}
 
 case "${HOST_TRIPLET}" in
     *-*-mingw*)
@@ -125,7 +104,7 @@ case "${HOST_TRIPLET}" in
         done
 
 
-        make HOST_PGEN='host-pgen2' HOST_PYTHON='host-python2' ${NUMJOBS}
+        make HOST_PGEN='host-pgen2' HOST_PYTHON='host-python2'
         make HOST_PGEN='host-pgen2' HOST_PYTHON='host-python2' \
             install DESTDIR=${PKG}
 
@@ -153,7 +132,7 @@ case "${HOST_TRIPLET}" in
 
     *)
 
-        make python Parser/pgen ${NUMJOBS}
+        make python Parser/pgen
         mkdir -p ${PKG}/bin
         mv python ${PKG}/bin/host-python2
         mv Parser/pgen ${PKG}/bin/host-pgen2
@@ -172,4 +151,4 @@ cat ${CWD}/${PKGNAM}.yypkg.script | sed \
   -e "s/%{VER}/${VERSION}/" \
   -e "s/%{BUILD}/${BUILD}/" \
   -e "s/%{DESCR}/${DESCR:-"No description"}/" \
-  | yypkg --makepkg --output ${YYOUTPUT} --script - --directory "${PKG}"
+  | yypkg --makepkg --output ${YYOUTPUT} --script - --directory "${PKG}/${PREFIX}"
