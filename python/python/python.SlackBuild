@@ -40,6 +40,8 @@ TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 OUTPUT=${OUTPUT:-/tmp}
 
+export LANG="en"
+
 # Don't set any SLKCFLAGS here, or OPT="$SLKCFLAGS" before the ./configure.
 # Python gets the compile options right without any help.
 if [ "$ARCH" = "i486" ]; then
@@ -83,7 +85,6 @@ if [ ! -d Python-${VERSION} ]; then
             autoheader
             autoconf
             rm -rf autom4te.cache
-            EXEEXT=".exe"
             ;;
         *)
             ;;
@@ -101,21 +102,28 @@ cd Python-$VERSION
 #  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
 #  -exec chmod 644 {} \;
 
-./configure \
-  --prefix=/${PREFIX} \
-  --host=${HOST_TRIPLET} \
-  --libdir=/${PREFIX}/lib${LIBDIRSUFFIX} \
-  --mandir=/${PREFIX}/man \
-  --docdir=/${PREFIX}/doc/$PKGNAM-$VERSION \
-  --with-threads \
-  --disable-ipv6 \
-  --enable-shared \
-  --with-system-expat \
-  --with-system-ffi \
-  --build=${BUILD_TRIPLET}
+if [ ! -f Makefile ]; then
+    ./configure \
+        --prefix=/${PREFIX} \
+        --host=${HOST_TRIPLET} \
+        --libdir=/${PREFIX}/lib${LIBDIRSUFFIX} \
+        --mandir=/${PREFIX}/man \
+        --docdir=/${PREFIX}/doc/$PKGNAM-$VERSION \
+        --with-threads \
+        --disable-ipv6 \
+        --enable-shared \
+        --with-system-expat \
+        --with-system-ffi \
+        --build=${BUILD_TRIPLET}
+fi
 
 case "${HOST_TRIPLET}" in
     *-*-mingw*)
+
+        for i in libbz2 libsqlite3 libz libssl; do
+            cat ${YYPREFIX}/lib/${i}.dll.a > ${i}.dll.a
+        done
+
 
         make HOST_PGEN='host-pgen2' HOST_PYTHON='host-python2' ${NUMJOBS}
         make HOST_PGEN='host-pgen2' HOST_PYTHON='host-python2' \
@@ -125,7 +133,7 @@ case "${HOST_TRIPLET}" in
         mkdir -p $SITEPK
         cp -a Tools/* $SITEPK
 
-        rm -f $SITEPK/setuptools/*.${EXEEXT}
+        rm -f $SITEPK/setuptools/*.exe
 
         # Install docs:
         mkdir -p $PKG/${PREFIX}/doc/$PKGNAM-$VERSION
