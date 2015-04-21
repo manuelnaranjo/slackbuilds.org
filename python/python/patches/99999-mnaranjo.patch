@@ -1,0 +1,79 @@
+diff -uprN Python-2.7.5.orig/configure.ac Python-2.7.5/configure.ac
+--- Python-2.7.5.orig/configure.ac	2015-04-21 10:29:24.494003997 -0300
++++ Python-2.7.5/configure.ac	2015-04-21 12:15:29.385907315 -0300
+@@ -36,7 +36,7 @@ if test "$cross_compiling" = yes; then
+ 	# the build Python will attempt to load shared modules from the host Python, which will fail due to them being of the wrong
+ 	# architecture (e.g. x86_64 vs x86 or arm). It would probably be better if _sysconfigdata.py was placed elsewhere,
+ 	# i.e. in a folder that does not also contain incompatible shared modules.
+-	PYTHON_FOR_BUILD='_PYTHON_PROJECT_BASE=$(abs_builddir) _PYTHON_HOST_PLATFORM=$(_PYTHON_HOST_PLATFORM) PYTHONPATH='$($interp -c "import sysconfig; print sysconfig.get_config_var(\"DESTSHARED\")")':$(shell test -f pybuilddir.txt && echo $(abs_builddir)/`cat pybuilddir.txt`:)$(srcdir)/Lib:$(srcdir)/Lib/plat-$(MACHDEP) '$interp
++	PYTHON_FOR_BUILD='_PYTHON_PROJECT_BASE=$(abs_builddir) _PYTHON_HOST_PLATFORM=$(_PYTHON_HOST_PLATFORM) PYTHONPATH='$($interp -c "import sysconfig; print sysconfig.get_config_var(\"DESTSHARED\")")':$(shell test -f pybuilddir.txt && echo $(abs_builddir)/`cat pybuilddir.txt`:)$(srcdir)/Lib:$(srcdir)/Lib/plat-$(MACHDEP) $(HOST_PYTHON)'
+     fi
+ elif test "$cross_compiling" = maybe; then
+     AC_MSG_ERROR([Cross compiling required --host=HOST-TUPLE and --build=ARCH])
+diff -uprN Python-2.7.5.orig/Lib/plat-generic/regen Python-2.7.5/Lib/plat-generic/regen
+--- Python-2.7.5.orig/Lib/plat-generic/regen	2015-04-21 10:29:24.618000991 -0300
++++ Python-2.7.5/Lib/plat-generic/regen	2015-04-21 15:57:57.123970490 -0300
+@@ -6,4 +6,4 @@ if [ -n "$1" ]; then
+ else
+     REGENHEADER=/usr/include/netinet/in.h
+ fi
+-eval $PYTHON_FOR_BUILD ../../Tools/scripts/h2py.py -i "'(u_long)'" $REGENHEADER
++$PYTHON_FOR_BUILD ../../Tools/scripts/h2py.py -i "'(u_long)'" $REGENHEADER
+diff -uprN Python-2.7.5.orig/Makefile.pre.in Python-2.7.5/Makefile.pre.in
+--- Python-2.7.5.orig/Makefile.pre.in	2015-04-21 10:29:24.490004094 -0300
++++ Python-2.7.5/Makefile.pre.in	2015-04-21 15:37:31.845754706 -0300
+@@ -195,6 +195,8 @@ PYTHON=		python$(EXE)
+ BUILDPYTHON=	python$(BUILDEXE)
+ 
+ PYTHON_FOR_BUILD=@PYTHON_FOR_BUILD@
++PGEN_FOR_BUILD=$(HOST_PGEN)
++
+ _PYTHON_HOST_PLATFORM=@_PYTHON_HOST_PLATFORM@
+ HOST_GNU_TYPE=  @host@
+ 
+@@ -457,8 +459,9 @@ sharedmods: $(BUILDPYTHON) pybuilddir.tx
+ 	    *\ -s*|s*) quiet="-q";; \
+ 	    *) quiet="";; \
+ 	esac; \
+-	$(RUNSHARED) CC='$(CC)' LDSHARED='$(BLDSHARED)' OPT='$(OPT)' \
+-		$(PYTHON_FOR_BUILD) $(srcdir)/setup.py $$quiet build
++	$(RUNSHARED) LANG='en' CC='$(CC)' LDSHARED='$(BLDSHARED)' \
++                OPT='$(OPT)' $(PYTHON_FOR_BUILD) $(srcdir)/setup.py \
++                $$quiet build
+ 
+ # Build static library
+ # avoid long command lines, same as LIBRARY_OBJS
+@@ -600,7 +603,7 @@ Modules/pwdmodule.o: $(srcdir)/Modules/p
+ $(GRAMMAR_H): $(GRAMMAR_INPUT) $(PGENSRCS)
+ 		@$(MKDIR_P) Include
+ 		$(MAKE) $(PGEN)
+-		$(PGEN) $(GRAMMAR_INPUT) $(GRAMMAR_H) $(GRAMMAR_C)
++		$(PGEN_FOR_BUILD) $(GRAMMAR_INPUT) $(GRAMMAR_H) $(GRAMMAR_C)
+ $(GRAMMAR_C): $(GRAMMAR_H) $(GRAMMAR_INPUT) $(PGENSRCS)
+ 		$(MAKE) $(GRAMMAR_H)
+ 		touch $(GRAMMAR_C)
+diff -uprN Python-2.7.5.orig/setup.py Python-2.7.5/setup.py
+--- Python-2.7.5.orig/setup.py	2015-04-21 10:29:24.494003997 -0300
++++ Python-2.7.5/setup.py	2015-04-21 15:29:07.915689508 -0300
+@@ -183,6 +183,9 @@ class PyBuildExt(build_ext):
+         self.failed = []
+ 
+     def build_extensions(self):
++        if host_platform == "win32":
++            self.compiler.static_lib_extension = ".dll.a"
++            self.compiler.shared_lib_extension = ".dll"
+ 
+         # Detect which modules should be compiled
+         missing = self.detect_modules()
+@@ -1283,10 +1286,7 @@ class PyBuildExt(build_ext):
+ 
+             sqlite_defines = []
+             #NOTE: don't add mingw here
+-            if host_platform != "win32":
+-                sqlite_defines.append(('MODULE_NAME', '"sqlite3"'))
+-            else:
+-                sqlite_defines.append(('MODULE_NAME', '\\"sqlite3\\"'))
++            sqlite_defines.append(('MODULE_NAME', '"sqlite3"'))
+ 
+             # Comment this out if you want the sqlite3 module to be able to load extensions.
+             sqlite_defines.append(("SQLITE_OMIT_LOAD_EXTENSION", "1"))
