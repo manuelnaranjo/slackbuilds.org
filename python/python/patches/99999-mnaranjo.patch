@@ -10,15 +10,6 @@ diff -uprN Python-2.7.5.orig/configure.ac Python-2.7.5/configure.ac
      fi
  elif test "$cross_compiling" = maybe; then
      AC_MSG_ERROR([Cross compiling required --host=HOST-TUPLE and --build=ARCH])
-diff -uprN Python-2.7.5.orig/Lib/plat-generic/regen Python-2.7.5/Lib/plat-generic/regen
---- Python-2.7.5.orig/Lib/plat-generic/regen	2015-04-21 10:29:24.618000991 -0300
-+++ Python-2.7.5/Lib/plat-generic/regen	2015-04-21 15:57:57.123970490 -0300
-@@ -6,4 +6,4 @@ if [ -n "$1" ]; then
- else
-     REGENHEADER=/usr/include/netinet/in.h
- fi
--eval $PYTHON_FOR_BUILD ../../Tools/scripts/h2py.py -i "'(u_long)'" $REGENHEADER
-+$PYTHON_FOR_BUILD ../../Tools/scripts/h2py.py -i "'(u_long)'" $REGENHEADER
 diff -uprN Python-2.7.5.orig/Makefile.pre.in Python-2.7.5/Makefile.pre.in
 --- Python-2.7.5.orig/Makefile.pre.in	2015-04-21 10:29:24.490004094 -0300
 +++ Python-2.7.5/Makefile.pre.in	2015-04-21 15:37:31.845754706 -0300
@@ -52,10 +43,25 @@ diff -uprN Python-2.7.5.orig/Makefile.pre.in Python-2.7.5/Makefile.pre.in
  $(GRAMMAR_C): $(GRAMMAR_H) $(GRAMMAR_INPUT) $(PGENSRCS)
  		$(MAKE) $(GRAMMAR_H)
  		touch $(GRAMMAR_C)
-diff -uprN Python-2.7.5.orig/setup.py Python-2.7.5/setup.py
+--- Python-2.7.5.orig/Lib/plat-generic/regen	2015-04-21 10:29:24.618000991 -0300
++++ Python-2.7.5/Lib/plat-generic/regen	2015-04-21 17:04:48.360863836 -0300
+@@ -1,9 +1,9 @@
+ #! /bin/sh
+-set -v
++set -ex
+ if [ -n "$1" ]; then
+     CCINSTALL=$($1 -print-search-dirs | head -1 | cut -d' ' -f2)
+-    REGENHEADER=${CCINSTALL//\\//}include/stddef.h
++    REGENHEADER="$(echo ${CCINSTALL} | sed 's/\\/\//g')include/stddef.h"
+ else
+-    REGENHEADER=/usr/include/netinet/in.h
++    REGENHEADER="/usr/include/netinet/in.h"
+ fi
+-eval $PYTHON_FOR_BUILD ../../Tools/scripts/h2py.py -i "'(u_long)'" $REGENHEADER
++eval ${PYTHON_FOR_BUILD} ../../Tools/scripts/h2py.py -i "'(u_long)'" $REGENHEADER
 --- Python-2.7.5.orig/setup.py	2015-04-21 10:29:24.494003997 -0300
-+++ Python-2.7.5/setup.py	2015-04-21 15:29:07.915689508 -0300
-@@ -183,6 +183,9 @@ class PyBuildExt(build_ext):
++++ Python-2.7.5/setup.py	2015-04-21 18:46:22.963873432 -0300
+@@ -183,6 +183,9 @@
          self.failed = []
  
      def build_extensions(self):
@@ -65,7 +71,19 @@ diff -uprN Python-2.7.5.orig/setup.py Python-2.7.5/setup.py
  
          # Detect which modules should be compiled
          missing = self.detect_modules()
-@@ -1283,10 +1286,7 @@ class PyBuildExt(build_ext):
+@@ -239,8 +242,9 @@
+ 
+             # If a module has already been built statically,
+             # don't build it here
+-            if ext.name in sys.builtin_module_names:
+-                self.extensions.remove(ext)
++            if host_platform != 'win32':
++                if ext.name in sys.builtin_module_names:
++                    self.extensions.remove(ext)
+ 
+         # Parse Modules/Setup and Modules/Setup.local to figure out which
+         # modules are turned on in the file.
+@@ -1283,10 +1287,7 @@
  
              sqlite_defines = []
              #NOTE: don't add mingw here
