@@ -104,7 +104,7 @@ case "${HOST_TRIPLET}" in
         done
 
 
-        make HOST_PGEN='host-pgen2' HOST_PYTHON='host-python2'
+        make HOST_PGEN='host-pgen2' HOST_PYTHON='host-python2' ${NUMJOBS}
         make HOST_PGEN='host-pgen2' HOST_PYTHON='host-python2' \
             install DESTDIR=${PKG}
 
@@ -132,7 +132,7 @@ case "${HOST_TRIPLET}" in
 
     *)
 
-        make python Parser/pgen
+        make python Parser/pgen ${NUMJOBS}
         mkdir -p ${PKG}/bin
         mv python ${PKG}/bin/host-python2
         mv Parser/pgen ${PKG}/bin/host-pgen2
