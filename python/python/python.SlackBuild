@@ -133,9 +133,9 @@ case "${HOST_TRIPLET}" in
     *)
 
         make python Parser/pgen ${NUMJOBS}
-        mkdir -p ${PKG}/bin
-        mv python ${PKG}/bin/host-python2
-        mv Parser/pgen ${PKG}/bin/host-pgen2
+        mkdir -p ${PKG}/${PREFIX}/bin
+        mv python ${PKG}/${PREFIX}//bin/host-python2
+        mv Parser/pgen ${PKG}/${PREFIX}/bin/host-pgen2
 
         ;;
 
